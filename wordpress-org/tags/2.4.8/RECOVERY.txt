@@ -1,0 +1,25 @@
+UWH Site Migrator 2.4.5 restore safety
+
+Before a destructive restore begins, United Web Host Site Migrator creates a full-site safety checkpoint.
+During the destructive file/database/finalize phases, the plugin uses its internal uwhsm_restore_guard state
+to keep the current Site Migrator code available and to return a temporary maintenance response on the
+public frontend. No PHP file is generated in wp-content/mu-plugins for this purpose.
+
+If a restore is interrupted:
+
+1. Sign in to WordPress as an administrator.
+2. Open Site Migrator > Import / Export or Site Migrator > Troubleshooting.
+3. Use Resume interrupted restore / rollback for the existing restore job.
+4. Do not start another restore over an unfinished restore job.
+5. Keep the original .uwh backup and its safety checkpoint until the restore or rollback completes.
+
+If a destructive restore fails, Site Migrator can switch to its retained safety checkpoint for automatic
+rollback. Manual rollback is also available from the Restore safety checkpoints area when a checkpoint is
+present and is not protecting an unfinished restore.
+
+The restore guard is runtime state only. It is cleared when restore finalization completes and is also
+removed by the plugin's uninstall runtime cleanup. Completed backup archives and restore checkpoints are
+preserved unless an administrator explicitly removes them.
+
+If the admin area reports a PHP or database error, review the hosting PHP error log before retrying.
+Do not edit WordPress core files or create/edit an MU-plugin as part of Site Migrator recovery.

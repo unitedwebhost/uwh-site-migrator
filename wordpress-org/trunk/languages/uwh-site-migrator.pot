@@ -1,0 +1,3368 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: UWH Site Migrator 2.4.12\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/uwh-site-migrator/\n"
+"POT-Creation-Date: 2026-10-02 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Domain: uwh-site-migrator\n"
+
+#: includes/class-uwhsm-admin.php:548
+msgid " 32-bit"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:548
+msgid " 64-bit"
+msgstr ""
+
+#: assets/admin.js:74
+msgid " Automatic local copy removed."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:49
+msgid " Manual backup remains available."
+msgstr ""
+
+#: assets/admin.js:332 assets/admin.js:345
+msgid " Original error: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:72
+msgid " Request ID: "
+msgstr ""
+
+#: assets/admin.js:74
+msgid " The local backup remains available."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:125
+msgid " UTC"
+msgstr ""
+
+#: assets/admin.js:300
+msgid " You can use Resume interrupted backup."
+msgstr ""
+
+#: assets/admin.js:355
+msgid " You can use Resume interrupted restore."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:302
+msgid " · 32-bit"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:302
+msgid " · 64-bit"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:127
+msgid " · Check hosting cron if progress does not advance."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:125
+msgid " · Last cron run: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:642
+msgid " · optional"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:125
+msgid " · Waiting for first cron run"
+msgstr ""
+
+#: assets/admin.js:645
+msgid "%1$s · %2$s / %3$s · %4$s MB/s"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:637
+msgid "%d required check needs attention"
+msgid_plural "%d required checks need attention"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-uwhsm-admin.php:288
+msgid "%s schedule"
+msgstr ""
+
+#: assets/admin.js:251
+msgid "%s stored in Drive"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1275
+msgid "%s: could not delete old automatic archive"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1251
+msgid "%s: could not inspect archive"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1256
+msgid "%s: size no longer matches completion marker"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:249
+msgid ". The stored backup itself will be retained."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:423
+msgid "1. Source site"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:441
+msgid "2. Destination site"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:496
+msgid "32-bit"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:496
+msgid "64-bit PHP"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:344
+msgid "; available %s."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:228
+msgid "; available: %s."
+msgstr ""
+
+#: assets/admin.js:433
+msgid "A restore batch is already running."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:297
+msgid "Accessible backups"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:688
+msgid "Account"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:298 includes/class-uwhsm-admin.php:366 includes/class-uwhsm-admin.php:395 includes/class-uwhsm-drive.php:302
+msgid "Actions"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:677
+msgid "Active background jobs"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:566
+msgid "Active background jobs: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:616
+msgid "Activity"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:591
+msgid "Activity / Backup Logs"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:593
+msgid "Activity log overview"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:571
+msgid "Activity log rows: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:523
+msgid "Activity log was cleared by an administrator."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:713 includes/class-uwhsm-admin.php:72
+msgid "Activity Logs"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:29
+msgid "Administrator permission on a single site is required."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:469 includes/class-uwhsm-drive.php:187
+msgid "Administrator permission on a single-site WordPress installation is required."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:518 includes/class-uwhsm-admin.php:540 includes/class-uwhsm-engine.php:280 includes/class-uwhsm-site-transfer.php:48
+msgid "Administrator permission required."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:603
+msgid "All categories"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:604
+msgid "All statuses"
+msgstr ""
+
+#: assets/admin.js:186 assets/admin.js:200
+msgid "Already in Drive"
+msgstr ""
+
+#: assets/admin.js:174 assets/admin.js:548
+msgid "Already in Local"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:835
+msgid "An active plugin is missing from the archive: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:732
+msgid "Another restore is unfinished. Resume it before starting another."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:950
+msgid "Archive stream stopped: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:572
+msgid "Archiving website files · %1$s / %2$s"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:158
+msgid "Auto backup settings saved successfully."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:675
+msgid "Automatic backup"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1223
+msgid "Automatic backup changed before Drive cleanup; local archive was kept."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1222
+msgid "Automatic backup could not be inspected before cleanup."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1217
+msgid "Automatic backup marker is missing; local archive was kept."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:141
+msgid "Automatic backup schedule could not be registered."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:156
+msgid "Automatic backup schedule updated."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:562
+msgid "Automatic backup: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:672
+msgid "Automatic backups and background processing depend on reliable cron execution."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:288
+msgid "Automatic backups are disabled"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:118
+msgid "Automatic backups disabled."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:120
+msgid "Automatic backups disabled. Manual backups remain available."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:262
+msgid "automatic backups in Google Drive. Default is 7. After a newer automatic backup uploads successfully, the oldest automatic Drive backup is removed when this limit is exceeded. Manual Drive backups are never removed by this rule."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:267
+msgid "Automatic backups:"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:264
+msgid "Automatic Drive retention could not identify this site."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:105
+msgid "Automatic Drive retention must be between 1 and 100 backups."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:486
+msgid "Automatic Drive retries paused after three failures. Use Resume Drive upload when Google or the network is ready."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:65
+msgid "Automatic Drive upload stopped."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:394
+msgid "Automatic full-site checkpoints created before destructive restores. The newest three are retained."
+msgstr ""
+
+#: assets/admin.js:344
+msgid "Automatic rollback complete — destination restored"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:912
+msgid "Automatic rollback could not start: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:870
+msgid "Automatic rollback started after restore failure."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:235
+msgid "Automatic Scheduled Backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:672
+msgid "Automation & WP-Cron"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:496 includes/class-uwhsm-admin.php:497 includes/class-uwhsm-admin.php:498 includes/class-uwhsm-admin.php:499 includes/class-uwhsm-admin.php:556 includes/class-uwhsm-admin.php:557 includes/class-uwhsm-admin.php:558 includes/class-uwhsm-admin.php:689 includes/class-uwhsm-admin.php:690 includes/class-uwhsm-engine.php:303
+msgid "Available"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:297
+msgid "Available backups"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:35
+msgid "Background backup processing enabled."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:35
+msgid "Background backup processing paused."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:34
+msgid "Background backup setting could not be changed."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:107
+msgid "Background backup worker encountered an error."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:244
+msgid "Background backup worker is unavailable."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:123
+msgid "Background enabled"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:567
+msgid "Background errors: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:678
+msgid "Background job errors"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:123
+msgid "Background paused"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:36
+msgid "Background processing enabled. Cron must run for this backup to continue after closing the tab."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:36
+msgid "Background processing paused. An open backup tab can still process batches."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:127 includes/class-uwhsm-admin.php:298 includes/class-uwhsm-admin.php:366 includes/class-uwhsm-drive.php:302
+msgid "Backup"
+msgstr ""
+
+#: assets/admin.js:513
+msgid "Backup and its temporary job files were deleted."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:529
+msgid "Backup batch is running. Try again after it finishes."
+msgstr ""
+
+#: assets/admin.js:286 includes/class-uwhsm-engine.php:553
+msgid "Backup complete"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:516
+msgid "Backup completed locally, but Drive delivery could not be queued: "
+msgstr ""
+
+#: assets/admin.js:290
+msgid "Backup completed locally, but Drive upload is paused. Use Resume Drive upload after resolving the message in the Google Drive panel."
+msgstr ""
+
+#: assets/admin.js:291
+msgid "Backup completed successfully. %s backup notice recorded. Refreshing the download list…"
+msgid_plural "Backup completed successfully. %s backup notices recorded. Refreshing the download list…"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/admin.js:298
+msgid "Backup completed successfully. Refreshing the download list…"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:504
+msgid "Backup completed."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1206
+msgid "Backup completion marker is damaged."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:406
+msgid "Backup could not start."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1334
+msgid "Backup deleted."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1334
+msgid "Backup deletion is waiting for a running job."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:493
+msgid "Backup failed."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:768
+msgid "Backup imported successfully."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:532
+msgid "Backup is missing or deletion was requested."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:467
+msgid "Backup job was not found or expired."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:478
+msgid "Backup job was removed."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:269
+msgid "Backup overview"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:280
+msgid "Backup packages on this server"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:405
+msgid "Backup started."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:500
+msgid "Backup storage"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:666
+msgid "Backup structure verification failed."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:255
+msgid "Backup Time"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:488
+msgid "Backup was cancelled and its temporary files were removed."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:453
+msgid "Built-in safety"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:251
+msgid "Cancel"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1096
+msgid "Cannot checkpoint imported table."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:470
+msgid "Cannot create backup lock. Check storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1323
+msgid "Cannot lock backup for deletion. Check storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:528
+msgid "Cannot lock backup settings."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1023
+msgid "Cannot lock restore."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:704
+msgid "Cannot lock upload."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:61
+msgid "Cannot reach the Google connection gateway over HTTPS."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:996
+msgid "Cannot recover an unverified archive entry."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:48
+msgid "Cannot replace Drive settings. Check backup storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1154
+msgid "Cannot restore active plugin list."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:45
+msgid "Cannot save Drive settings. Check backup storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1117
+msgid "Cannot save restore checkpoint."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1101
+msgid "Cannot seek database rows."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1149
+msgid "Cannot set destination URL."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:718
+msgid "Cannot write upload."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:530
+msgid "Category"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:287
+msgid "Check connection"
+msgstr ""
+
+#: assets/admin.js:514
+msgid "Check deletion"
+msgstr ""
+
+#: assets/admin.js:372
+msgid "checkpoint"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:130 includes/class-uwhsm-admin.php:395
+msgid "Checkpoint"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1165
+msgid "Checkpoint completion marker is invalid."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1190
+msgid "Checkpoint deleted."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:637
+msgid "Checks are read-only. Optional services such as Google Drive do not block local backup or restore."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:681
+msgid "Choose a valid UWH Site Migrator website backup file (.uwh, maximum 50 GB)."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:40
+msgid "Choose an unfinished backup."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:429
+msgid "Choose backup"
+msgstr ""
+
+#: assets/admin.js:597
+msgid "Choose or prepare a completed backup first."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:355
+msgid "Choose website backup (.uwh)"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:717
+msgid "Chunk exceeds the remaining backup size. Select the original backup and restart this upload."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:716
+msgid "Chunk exceeds this upload session limit. Refresh Site Migrator and restart upload."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:718
+msgid "Clear local connection"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:610
+msgid "Clear logs"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:717
+msgid "Clears only the local Google Drive connection. It does not delete backups from Drive."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:292
+msgid "Cloud delivery is ready"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:303 includes/class-uwhsm-admin.php:370
+msgid "Complete"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:120
+msgid "Complete — 100%"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:297
+msgid "completed"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1208
+msgid "Completed backup could not be inspected."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1204 includes/class-uwhsm-engine.php:1292
+msgid "Completed backup not found."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1209
+msgid "Completed backup size changed after creation."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:595
+msgid "Completed operations"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:445
+msgid "Connect & migrate"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:292
+msgid "Connect Drive for cloud backups"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:287
+msgid "Connect Google Drive"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:367
+msgid "Connect Google Drive before creating a Drive backup."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:471
+msgid "Connect Google Drive before using Drive backups."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:145 includes/class-uwhsm-drive.php:151 includes/class-uwhsm-drive.php:161
+msgid "Connect Google Drive first."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:462
+msgid "Connect Google Drive, review cloud backups and manage Drive transfer recovery."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:282
+msgid "Connect your account, review Site Migrator cloud backups and manage resumable Drive transfers."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:292 includes/class-uwhsm-admin.php:503 includes/class-uwhsm-admin.php:570 includes/class-uwhsm-admin.php:687
+msgid "Connected"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:688
+msgid "Connected account"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:285
+msgid "Connected to %s"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:685
+msgid "Connection used by manual and automatic cloud delivery."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:530
+msgid "Context"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:345
+msgid "Continue this backup in the background (requires working cron)."
+msgstr ""
+
+#: assets/admin.js:624
+msgid "Copied"
+msgstr ""
+
+#: assets/admin.js:624 includes/class-uwhsm-admin.php:435
+msgid "Copy connection details"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:637
+msgid "Core migration requirements look ready"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:592
+msgid "Could not add file: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:653
+msgid "Could not add staged database export."
+msgstr ""
+
+#: assets/background.js:15
+msgid "Could not change background settings."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:635
+msgid "Could not checkpoint database rows."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:593
+msgid "Could not checksum "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:71
+msgid "Could not commit Drive import progress."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:46
+msgid "Could not commit Drive transfer progress."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1005
+msgid "Could not commit recovered staged file: "
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:334
+msgid "Could not commit the incoming migration chunk."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:347
+msgid "Could not create checkpoint database staging."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:29
+msgid "Could not create protected Drive transfer storage."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1045
+msgid "Could not create restore loader directory."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:381
+msgid "Could not create the backup archive. Check disk space and permissions."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:283
+msgid "Could not create the destination package file."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:281
+msgid "Could not create the direct migration import directory."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:691
+msgid "Could not create the import directory."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:327
+msgid "Could not create the restore safety checkpoint."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:789
+msgid "Could not create the restore staging directory."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1190
+msgid "Could not delete the checkpoint file."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:67
+msgid "Could not encrypt Drive import progress."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:41
+msgid "Could not encrypt Drive settings."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:42
+msgid "Could not encrypt Drive transfer progress."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:942
+msgid "Could not extract "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:599
+msgid "Could not finish writing ZIP. Check free disk space and hosting limits."
+msgstr ""
+
+#: assets/admin.js:509
+msgid "Could not identify this backup. Refresh the page and try again."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1113
+msgid "Could not import "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:658
+msgid "Could not lock Drive import progress."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:424
+msgid "Could not lock Drive transfer."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:894
+msgid "Could not lock restore."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:317
+msgid "Could not lock the direct migration session."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:93
+msgid "Could not lock the Drive queue."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:579
+msgid "Could not open archive (Zip error "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:633
+msgid "Could not open staged database rows."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1303
+msgid "Could not open the backup file."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:829
+msgid "Could not open the downloaded backup for streaming."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:243
+msgid "Could not reach the source site: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:948
+msgid "Could not read archive entry: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:455
+msgid "Could not read database tables."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:611
+msgid "Could not read schema for table "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:833
+msgid "Could not read the downloaded backup."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:446
+msgid "Could not read the queued local backup range."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1002
+msgid "Could not recreate staged file. Check storage permissions and free space."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:178
+msgid "Could not remove local Drive settings. Check storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:669
+msgid "Could not save backup completion marker. Check storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:204
+msgid "Could not save direct migration progress."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:70
+msgid "Could not save Drive import progress."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:45
+msgid "Could not save Drive transfer progress."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:295
+msgid "Could not save migration progress. Check uploads directory permissions."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:47
+msgid "Could not schedule background processing."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:227
+msgid "Could not secure the migration key on this server."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:637
+msgid "Could not stage database rows. Check disk space."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:612
+msgid "Could not stage database schema."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:720
+msgid "Could not store upload chunk."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:234
+msgid "Could not unlock the stored migration authorization. Restart the direct migration."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:943 includes/class-uwhsm-engine.php:951
+msgid "Could not write extracted file."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1056
+msgid "Could not write restore loader."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:683
+msgid "Could not write the downloaded backup chunk. Check storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:332
+msgid "Could not write the incoming migration package."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:340
+msgid "Create a backup, restore a .uwh website package, or export an existing local backup."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:344
+msgid "Create backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:347
+msgid "Create backup & send to Drive"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:346
+msgid "Create full backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:284
+msgid "Create your first backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:298 includes/class-uwhsm-admin.php:366 includes/class-uwhsm-admin.php:395 includes/class-uwhsm-drive.php:302
+msgid "Created"
+msgstr ""
+
+#: assets/admin.js:362 assets/admin.js:367 includes/class-uwhsm-engine.php:751 includes/class-uwhsm-engine.php:765 includes/class-uwhsm-engine.php:774
+msgid "Creating automatic rollback checkpoint"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:506
+msgid "Creating restore safety checkpoint · "
+msgstr ""
+
+#: assets/admin.js:563
+msgid "Creating safety checkpoint before rollback"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:499 includes/class-uwhsm-admin.php:690
+msgid "cURL"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:558
+msgid "cURL: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:825
+msgid "Custom wp-content paths are not supported."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:118 includes/class-uwhsm-drive.php:245 includes/class-uwhsm-drive.php:250 includes/class-uwhsm-engine.php:147
+msgid "Daily"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:629
+msgid "Database export failed: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1059
+msgid "Database operation failed: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:344
+msgid "Database, themes, plugins, uploads and WordPress files."
+msgstr ""
+
+#: assets/admin.js:100 assets/admin.js:165 includes/class-uwhsm-admin.php:313 includes/class-uwhsm-admin.php:378 includes/class-uwhsm-admin.php:404
+msgid "Delete"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:313
+msgid "Delete temporary"
+msgstr ""
+
+#: assets/admin.js:523
+msgid "Delete this backup permanently from Google Drive?"
+msgstr ""
+
+#: assets/admin.js:504
+msgid "Delete this backup permanently?"
+msgstr ""
+
+#: assets/admin.js:570
+msgid "Delete this restore safety checkpoint permanently?"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1334
+msgid "Deleted"
+msgstr ""
+
+#: assets/admin.js:527
+msgid "Deleted successfully from Drive."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:586
+msgid "Deleted successfully from Google Drive."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1334
+msgid "Deletion pending"
+msgstr ""
+
+#: assets/admin.js:513
+msgid "Deletion queued. The active backup batch will stop and remove its temporary files."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:479
+msgid "Deletion requested. Retry Delete temporary to finish cleanup."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:616
+msgid "Details"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:160 includes/class-uwhsm-admin.php:419 includes/class-uwhsm-admin.php:70 includes/class-uwhsm-admin.php:712
+msgid "Direct Migration"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:656
+msgid "Direct Migration and Drive transfers are chunked, so PHP upload limits mainly affect manual package uploads."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:90
+msgid "Direct Migration key could not be created."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:82
+msgid "Direct Migration key created."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:101
+msgid "Direct Migration key revoked."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:338
+msgid "Direct Migration package download completed."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:364
+msgid "Direct Migration package handed to restore engine."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:345
+msgid "Direct Migration package transfer encountered an error."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:260
+msgid "Direct migration requires HTTPS so the migration key is never sent over an unencrypted connection."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:366
+msgid "Direct Migration restore could not start."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:320
+msgid "Direct migration session disappeared."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:309 includes/class-uwhsm-site-transfer.php:315 includes/class-uwhsm-site-transfer.php:352
+msgid "Direct migration session not found."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:294
+msgid "Direct Migration transfer could not start."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:292
+msgid "Direct site-to-site package transfer started."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:674
+msgid "Disabled"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:287
+msgid "Disconnect"
+msgstr ""
+
+#: assets/admin.js:165 assets/admin.js:99 includes/class-uwhsm-admin.php:310 includes/class-uwhsm-admin.php:376
+msgid "Download"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:638
+msgid "Download diagnostic report"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:684
+msgid "Downloaded backup chunk could not be verified on disk."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:614 includes/class-uwhsm-drive-transfer.php:758
+msgid "Downloaded file is not a valid Site Migrator backup."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:131
+msgid "Drive"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:276
+msgid "Drive Backups"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:259
+msgid "Drive backups to keep"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:691
+msgid "Drive error"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:604
+msgid "Drive import"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:80
+msgid "Drive import belongs to another site, its security keys changed, or its state was modified."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:617
+msgid "Drive import finished downloading, but the local backup could not be saved. Check storage permissions."
+msgstr ""
+
+#: assets/admin.js:122
+msgid "Drive import ID is missing."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:78 includes/class-uwhsm-drive-transfer.php:82
+msgid "Drive import progress is damaged."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:76
+msgid "Drive import progress is missing or damaged."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:611
+msgid "Drive import size did not match the selected backup."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:600
+msgid "Drive import stopped"
+msgstr ""
+
+#: assets/admin.js:129
+msgid "Drive import stopped."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:524 includes/class-uwhsm-drive-transfer.php:526 includes/class-uwhsm-drive-transfer.php:529
+msgid "Drive inventory cursor is invalid or expired. Refresh the list."
+msgstr ""
+
+#: assets/admin.js:268
+msgid "Drive list unavailable"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:276
+msgid "Drive not connected"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:94
+msgid "Drive queue is busy. Try again shortly."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:161 includes/class-uwhsm-admin.php:462 includes/class-uwhsm-admin.php:71
+msgid "Drive Settings"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:26 includes/class-uwhsm-drive.php:28 includes/class-uwhsm-drive.php:33
+msgid "Drive settings are damaged."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:52
+msgid "Drive site credential is missing."
+msgstr ""
+
+#: assets/admin.js:186 assets/admin.js:464
+msgid "Drive status unavailable"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:55
+msgid "Drive transfer belongs to another site, its security keys changed, or its state was modified."
+msgstr ""
+
+#: assets/admin.js:48
+msgid "Drive transfer ID is missing."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:53 includes/class-uwhsm-drive-transfer.php:57
+msgid "Drive transfer progress is damaged."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:51
+msgid "Drive transfer progress is missing or damaged."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:513
+msgid "Drive transfer queue did not return an ID."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1224
+msgid "Drive upload completed, but the automatic local backup could not be deleted. Check file permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1227
+msgid "Drive upload completed, but the automatic local backup still exists."
+msgstr ""
+
+#: includes/class-uwhsm-background.php:71
+msgid "Drive upload completed; waiting to remove the automatic local copy."
+msgstr ""
+
+#: assets/admin.js:60
+msgid "Drive upload paused."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:502 includes/class-uwhsm-admin.php:674
+msgid "Enabled"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:257
+msgid "Enter a valid Site Migrator migration key."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:441
+msgid "Enter the source URL and migration key. This server pulls the package directly in resumable chunks."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:259
+msgid "Enter the source WordPress URL, including https://."
+msgstr ""
+
+#: assets/admin.js:695
+msgid "Error saving settings."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:609
+msgid "Export CSV"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:365
+msgid "Export local backup"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:561
+msgid "Exporting database · table %1$d/%2$d · %3$s rows"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:957
+msgid "Extracted file checksum failed: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:143 includes/class-uwhsm-admin.php:702
+msgid "Failed"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:578
+msgid "Failed to delete file from Google Drive."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:741
+msgid "Failed to download from Google Drive."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:596
+msgid "Failures"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:591
+msgid "File is not readable: "
+msgstr ""
+
+#: assets/admin.js:337
+msgid "Files and database restored — checking homepage"
+msgstr ""
+
+#: assets/admin.js:351
+msgid "Files and database restored — homepage needs review"
+msgstr ""
+
+#: assets/admin.js:348
+msgid "Files and database restored; homepage check passed. Review inner pages and sign in using the source site account. Save Settings → Permalinks once."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:606
+msgid "Filter"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:921
+msgid "Finalizing migration"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:921
+msgid "Finalizing rollback"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:554
+msgid "Finalizing ZIP and checking package structure"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:501 includes/class-uwhsm-admin.php:663
+msgid "Free disk"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:305
+msgid "Free disk space"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:561
+msgid "Free disk: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:241
+msgid "Frequency"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:104
+msgid "Gateway returned an unexpected sign-in URL."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:68
+msgid "Gateway start failed. Update the gateway package, then check its health page and PHP error log."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:430
+msgid "Generate secure key"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:545
+msgid "Generated UTC: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:124
+msgid "Google account verification was incomplete."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:66
+msgid "Google connection gateway rejected this request."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:64
+msgid "Google connection gateway returned an invalid response."
+msgstr ""
+
+#: assets/admin.js:256 assets/dashboard-metrics.js:27 includes/class-uwhsm-admin.php:292 includes/class-uwhsm-admin.php:503 includes/class-uwhsm-admin.php:685 includes/class-uwhsm-drive.php:282
+msgid "Google Drive"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:207
+msgid "Google Drive account action failed."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:802
+msgid "Google Drive authorization expired or was denied. Reconnect Google Drive and try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:414
+msgid "Google Drive authorization expired. Reconnect Google Drive, then resume this transfer."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:581
+msgid "Google Drive backup could not be deleted."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:585
+msgid "Google Drive backup deleted."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:370
+msgid "Google Drive backup folder could not be created."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:653
+msgid "Google Drive backup import started."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:598
+msgid "Google Drive backup imported to local storage."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:559
+msgid "Google Drive backup list is temporarily unavailable. Refresh and try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:409
+msgid "Google Drive completion response did not match the local backup."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:406
+msgid "Google Drive confirmed an older upload offset."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:397
+msgid "Google Drive confirmed bytes beyond the archive."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:216
+msgid "Google Drive connected successfully."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:217
+msgid "Google Drive connected: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:218
+msgid "Google Drive connection callback failed."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:83
+msgid "Google Drive connection requires HTTPS and a standard single-site WordPress installation."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:80
+msgid "Google Drive connection requires the PHP OpenSSL extension."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:195
+msgid "Google Drive connection verified."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:195
+msgid "Google Drive connection verified: "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:270
+msgid "Google Drive could not delete an old automatic backup. Retention will retry."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:670
+msgid "Google Drive could not download the next backup chunk. Try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:641
+msgid "Google Drive could not inspect the selected backup."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:390
+msgid "Google Drive could not start a resumable upload."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:351
+msgid "Google Drive could not verify the previous upload. No duplicate transfer was started. Try again shortly."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:198
+msgid "Google Drive disconnected."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:199
+msgid "Google Drive disconnected. "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:813
+msgid "Google Drive download failed with HTTP status %d."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:796
+msgid "Google Drive download request failed. Please try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:362
+msgid "Google Drive folder lookup failed. Try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:255
+msgid "Google Drive has too many backup pages to safely apply retention in one run."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:679
+msgid "Google Drive ignored the requested backup range. Try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:690
+msgid "Google Drive import encountered an error."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:599
+msgid "Google Drive import stopped."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:237
+msgid "Google Drive is not connected. You can save the schedule now, but automatic delivery will wait until Drive is connected."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:808
+msgid "Google Drive is rate-limiting this download. Please wait and try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:811
+msgid "Google Drive is temporarily unavailable. Please try again later."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:402
+msgid "Google Drive is temporarily unavailable. Site Migrator will retry from the confirmed offset."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:154 includes/class-uwhsm-drive.php:163
+msgid "Google Drive needs to be reconnected."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:213
+msgid "Google Drive permission was not granted or Google could not verify it. Please try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:415
+msgid "Google Drive rejected this upload. The local backup is unchanged."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:246
+msgid "Google Drive retention list is temporarily unavailable."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:817
+msgid "Google Drive returned an empty download."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:673
+msgid "Google Drive returned an incomplete backup chunk. Try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:560
+msgid "Google Drive returned an invalid backup list."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:646
+msgid "Google Drive returned an invalid backup size."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:396
+msgid "Google Drive returned an invalid confirmed range."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:352
+msgid "Google Drive returned an invalid file check. No duplicate transfer was started."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:518
+msgid "Google Drive returned an invalid page cursor."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:247
+msgid "Google Drive returned an invalid retention list."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:676
+msgid "Google Drive returned an unexpected backup range. Try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:310
+msgid "Google Drive returned an unsafe resumable upload URL."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:303 includes/class-uwhsm-drive-transfer.php:305
+msgid "Google Drive returned an unsafe upload URL."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:287
+msgid "Google Drive transfer"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:283
+msgid "Google Drive upload complete"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:281
+msgid "Google Drive upload completed."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:105 includes/class-uwhsm-drive-transfer.php:118
+msgid "Google Drive upload queued."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:283
+msgid "Google Drive upload stopped"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:282
+msgid "Google Drive upload stopped."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:267
+msgid "Google Drive:"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:570
+msgid "Google Drive: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:116
+msgid "Google sign-in expired or belongs to another administrator session. Start again."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:550
+msgid "Home URL: "
+msgstr ""
+
+#: assets/admin.js:342
+msgid "Homepage returned an error"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:502
+msgid "Host cron detected"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:501 includes/class-uwhsm-admin.php:663 includes/class-uwhsm-admin.php:664 includes/class-uwhsm-engine.php:305
+msgid "Host did not report"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:453
+msgid "HTTPS-only key transfer, expiring source authorization, resumable chunks, package integrity validation, automatic pre-restore checkpoint, and automatic rollback on destructive restore failure."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:357
+msgid "I understand that restore will replace this site's database and website files."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:444
+msgid "I understand the destination site will be replaced after an automatic rollback checkpoint is created."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:250
+msgid "I understand this destructive restore will replace this website."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:159 includes/class-uwhsm-admin.php:340 includes/class-uwhsm-admin.php:69 includes/class-uwhsm-admin.php:711
+msgid "Import / Export"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:354
+msgid "Import / restore"
+msgstr ""
+
+#: assets/admin.js:352
+msgid "Import finished, but the homepage check did not pass. Check the destination error log before calling this migration successful. Do not repeat the restore automatically."
+msgstr ""
+
+#: assets/admin.js:98
+msgid "Import to Local"
+msgstr ""
+
+#: assets/admin.js:137
+msgid "Imported %s to local backups."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:619
+msgid "Imported backup could not be verified after saving."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:621
+msgid "Imported backup marker could not be saved. Check storage permissions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1116
+msgid "Imported row count mismatch: "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:600
+msgid "Imported to local backups"
+msgstr ""
+
+#: assets/admin.js:114 includes/class-uwhsm-drive-transfer.php:600
+msgid "Importing from Google Drive"
+msgstr ""
+
+#: assets/admin.js:542
+msgid "Importing..."
+msgstr ""
+
+#: assets/admin.js:209
+msgid "In Drive"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:145
+msgid "Info"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:634
+msgid "Inspect server readiness, automation, recovery state and recent failures before they become migration problems."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:822
+msgid "Install WordPress %s on the destination before restoring, to avoid mixing core versions."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:96
+msgid "Invalid automatic backup frequency."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:67
+msgid "Invalid automatic backup time."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:101
+msgid "Invalid automatic backup time. Use HH:MM, for example 03:00."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:365
+msgid "Invalid backup delivery choice."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:526
+msgid "Invalid backup job."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1214
+msgid "Invalid backup name for automatic cleanup."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1202 includes/class-uwhsm-engine.php:1308
+msgid "Invalid backup name."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:484
+msgid "Invalid backup state."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1162
+msgid "Invalid checkpoint name."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1106
+msgid "Invalid database row: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:757
+msgid "Invalid direct migration restore ID."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1291
+msgid "Invalid download authorization. Refresh the Site Migrator page and try again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:60 includes/class-uwhsm-drive-transfer.php:657
+msgid "Invalid Drive import ID."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:591
+msgid "Invalid Drive import range."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:35 includes/class-uwhsm-drive-transfer.php:423 includes/class-uwhsm-drive-transfer.php:497
+msgid "Invalid Drive transfer ID."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:297
+msgid "Invalid Drive upload range."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:626 includes/class-uwhsm-drive-transfer.php:718 includes/class-uwhsm-drive-transfer.php:774
+msgid "Invalid file selection."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:122
+msgid "Invalid Google connection ticket."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:572
+msgid "Invalid Google Drive file ID."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:112 includes/class-uwhsm-site-transfer.php:97
+msgid "Invalid migration key."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:318
+msgid "Invalid restore checkpoint request."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1021
+msgid "Invalid restore job."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:777 includes/class-uwhsm-engine.php:812
+msgid "Invalid restore session."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:904
+msgid "Invalid restore state."
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:40
+msgid "Invalid serialized container."
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:12
+msgid "Invalid serialized database value."
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:38
+msgid "Invalid serialized item count."
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:31
+msgid "Invalid serialized object."
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:23
+msgid "Invalid serialized string length."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:703
+msgid "Invalid upload session."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:708
+msgid "Jump directly to recovery and migration controls."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:262
+msgid "Keep the latest"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:267
+msgid "keeps the number of automatic backups configured above."
+msgstr ""
+
+#: assets/admin.js:586
+msgid "Key expires %s. Revoke it sooner if the migration finishes."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:615
+msgid "Keys, OAuth tokens and restore authorization secrets are never written to this log."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:597
+msgid "Last Activity"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:284
+msgid "Last Backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:565
+msgid "Last Site Migrator background tick: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:679
+msgid "Last worker tick"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:594
+msgid "Latest 500 retained"
+msgstr ""
+
+#: assets/admin.js:256
+msgid "Latest completed cloud backup"
+msgstr ""
+
+#: assets/admin.js:256 includes/class-uwhsm-admin.php:284
+msgid "Latest completed local backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:699
+msgid "Latest failed operations captured by Activity Logs."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:276
+msgid "Loading…"
+msgstr ""
+
+#: assets/dashboard-metrics.js:27
+msgid "Local backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:272
+msgid "Local Backups"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:682
+msgid "Local Drive import progress no longer matches the downloaded file. Restart the import."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:204
+msgid "Local Drive settings cleared. If an account was connected, revoke Site Migrator access in Google Account settings."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:203
+msgid "Local Google Drive connection settings cleared."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:280
+msgid "Local Storage Used"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:660
+msgid "Local storage used for packages, checkpoints and resumable job state."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:297
+msgid "local usage"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:572
+msgid "Logged failures: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:267
+msgid "Manual backups:"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:117 includes/class-uwhsm-admin.php:266
+msgid "Manual only"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:244
+msgid "Manual Only (Disabled)"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1196
+msgid "Manual rollback requested."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:650
+msgid "Max execution time"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:553
+msgid "Max execution time: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:649
+msgid "Memory limit"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:552
+msgid "Memory limit: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:530
+msgid "Message"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:132
+msgid "Migration"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:139
+msgid "Migration authorization failed."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:892 includes/class-uwhsm-engine.php:923
+msgid "Migration complete"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:434 includes/class-uwhsm-admin.php:443
+msgid "Migration key"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:118
+msgid "Migration key has expired."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:116
+msgid "Migration key is invalid or expired."
+msgstr ""
+
+#: assets/admin.js:628 includes/class-uwhsm-site-transfer.php:102
+msgid "Migration key revoked."
+msgstr ""
+
+#: assets/admin.js:609
+msgid "Migration package ready"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:497 includes/class-uwhsm-admin.php:498 includes/class-uwhsm-admin.php:499 includes/class-uwhsm-admin.php:556 includes/class-uwhsm-admin.php:557 includes/class-uwhsm-admin.php:558 includes/class-uwhsm-admin.php:689 includes/class-uwhsm-admin.php:690 includes/class-uwhsm-engine.php:303
+msgid "Missing"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:830
+msgid "Missing or damaged package entry: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:267
+msgid "Monitor backup health, storage, automation and recovery from one place."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:120 includes/class-uwhsm-drive.php:247 includes/class-uwhsm-drive.php:250 includes/class-uwhsm-engine.php:147
+msgid "Monthly"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:419
+msgid "Move a WordPress site server-to-server without downloading and re-uploading the backup manually."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:551
+msgid "Multisite: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:288
+msgid "Next Automatic Backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:563
+msgid "Next automatic backup: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:676
+msgid "Next backup event"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:250
+msgid "Next WP-Cron run:"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:551 includes/class-uwhsm-admin.php:560 includes/class-uwhsm-admin.php:564 includes/class-uwhsm-admin.php:622
+msgid "No"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:597
+msgid "No activity"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:617
+msgid "No activity matches the selected filters."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:299
+msgid "No backup packages found."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:265
+msgid "No backup yet"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:389
+msgid "No completed local backup is available."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:701
+msgid "No failures are currently recorded."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:596
+msgid "No logged failures"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:396
+msgid "No restore checkpoint has been created yet."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:300
+msgid "No Site Migrator backups uploaded by this app are visible in the connected Drive."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:679
+msgid "No tick recorded"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:250
+msgid "No WP-Cron event is currently registered; save the settings again and check hosting cron."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:565
+msgid "None recorded"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:292 includes/class-uwhsm-admin.php:503 includes/class-uwhsm-admin.php:570 includes/class-uwhsm-admin.php:687 includes/class-uwhsm-drive.php:285
+msgid "Not connected"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:686
+msgid "Not enough destination disk space. Required approximately %1$s; available %2$s."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:342
+msgid "Not enough free disk space for the automatic rollback checkpoint. Required approximately "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:226
+msgid "Not enough free disk space for the scheduled backup. Estimated requirement: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:398
+msgid "Not enough free disk space. Estimated requirement: %1$s; available: %2$s."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:844
+msgid "Not enough free space for extracted and restored files."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:276
+msgid "Not enough free space on the destination. Required approximately %1$s; available %2$s."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:266 includes/class-uwhsm-admin.php:563 includes/class-uwhsm-admin.php:676
+msgid "Not scheduled"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:500 includes/class-uwhsm-admin.php:662 includes/class-uwhsm-engine.php:304
+msgid "Not writable"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:681
+msgid "On low-traffic sites, configure a hosting cron to call"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:56
+msgid "Once Monthly"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:53
+msgid "Once Weekly"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:693
+msgid "Open Drive Settings"
+msgstr ""
+
+#: assets/installer-guard.js:10
+msgid "Open Site Migrator → Restore / Migrate"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:498 includes/class-uwhsm-admin.php:689
+msgid "OpenSSL"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:224
+msgid "OpenSSL is required for Direct Site-to-Site Migration."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:557
+msgid "OpenSSL: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:428
+msgid "Or use an existing completed backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:637
+msgid "Overall readiness"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:158 includes/class-uwhsm-admin.php:267 includes/class-uwhsm-admin.php:68 includes/class-uwhsm-admin.php:710
+msgid "Overview"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:827
+msgid "Package integrity index is missing."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:502
+msgid "Page cron disabled"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:674
+msgid "Page-triggered WP-Cron"
+msgstr ""
+
+#: assets/background.js:18
+msgid "Pause background"
+msgstr ""
+
+#: includes/class-uwhsm-background.php:121
+msgid "Paused: this job belongs to another site or its authorization changed. Re-enable to authorize here."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:666
+msgid "Pending restores"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:568
+msgid "Pending restores: "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:771 includes/class-uwhsm-engine.php:1290
+msgid "Permission denied."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:647
+msgid "PHP & transfer limits"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:495
+msgid "PHP 7.4+"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:302
+msgid "PHP runtime"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:363
+msgid "PHP ZipArchive is not enabled."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:319
+msgid "PHP ZipArchive is required to create the restore checkpoint."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:548
+msgid "PHP: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:839
+msgid "Plugin %1$s requires PHP %2$s"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:546
+msgid "Plugin version: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:49
+msgid "Plugin Website"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:652
+msgid "POST max size"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:555
+msgid "POST max: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:423
+msgid "Prepare a full package, then generate an expiring secure migration key."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:424
+msgid "Prepare new migration package"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:918
+msgid "Preparing rollback package"
+msgstr ""
+
+#: assets/admin.js:607
+msgid "Preparing source migration package"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:349 includes/class-uwhsm-admin.php:425
+msgid "Preparing…"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:474
+msgid "Previous backup batch is still finishing…"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:895
+msgid "Previous restore batch is still running"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:303
+msgid "Pulling website package from source"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:283
+msgid "Queued for Google Drive"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:615
+msgid "Recent activity"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:573
+msgid "RECENT FAILURES"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:699
+msgid "Recent failures"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:287
+msgid "Reconnect Google Drive"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:346 includes/class-uwhsm-drive-transfer.php:350
+msgid "Reconnect Google Drive before checking this completed upload."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:640
+msgid "Reconnect Google Drive before importing this backup."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:361 includes/class-uwhsm-drive-transfer.php:368 includes/class-uwhsm-drive-transfer.php:389
+msgid "Reconnect Google Drive before starting this upload."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:470
+msgid "Reconnect Google Drive before using Drive backups."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:245
+msgid "Reconnect Google Drive so automatic retention can finish."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:547 includes/class-uwhsm-drive-transfer.php:549 includes/class-uwhsm-drive-transfer.php:558
+msgid "Reconnect Google Drive to load Site Migrator backups."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:669
+msgid "Reconnect Google Drive, then resume this import."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:439 includes/class-uwhsm-drive-transfer.php:460
+msgid "Reconnect Google Drive, then resume this transfer. The local backup is unchanged."
+msgstr ""
+
+#: assets/admin.js:60
+msgid "Reconnect Google Drive, then resume this upload."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1004
+msgid "Recovered file checksum failed: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:708
+msgid "Recovery shortcuts"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:297
+msgid "Refresh"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:638
+msgid "Refresh checks"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1042
+msgid "Refusing to overwrite a symbolic link: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:681
+msgid "regularly when WordPress page-triggered cron is disabled."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:267
+msgid "remain stored locally and are never auto-pruned from Drive."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:267
+msgid "removed locally after a successful Drive upload. If Drive fails or needs reconnection, only the latest 2 completed automatic backups are retained locally."
+msgstr ""
+
+#: assets/admin.js:15
+msgid "Request failed."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:851
+msgid "Required WordPress table missing: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:606
+msgid "Reset"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:716
+msgid "Reset Drive connection"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:128 includes/class-uwhsm-admin.php:309 includes/class-uwhsm-admin.php:375
+msgid "Restore"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:889
+msgid "Restore authorization expired or is invalid."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1024
+msgid "Restore batch is running. Try again shortly."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:797
+msgid "Restore checkpoint authorization is invalid."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1167
+msgid "Restore checkpoint file is incomplete."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1164
+msgid "Restore checkpoint not found."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1168
+msgid "Restore checkpoint size no longer matches its completion marker."
+msgstr ""
+
+#: assets/admin.js:347
+msgid "Restore complete — homepage responded"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:923
+msgid "Restore completed successfully."
+msgstr ""
+
+#: assets/admin.js:332
+msgid "Restore error detected. Automatic rollback is restoring the safety checkpoint."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:873
+msgid "Restore failed — automatic rollback started"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:908
+msgid "Restore failed."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:748
+msgid "Restore prepared and safety checkpoint requested."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:806
+msgid "Restore safety checkpoint is ready."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:357
+msgid "Restore safety checkpoint started."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:394
+msgid "Restore safety checkpoints"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:897
+msgid "Restore session not found."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:248
+msgid "Restore this local backup?"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:365
+msgid "Restore, download, send to Drive or delete completed local backups."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:297
+msgid "Restore, download, send to Drive or remove packages stored on this server."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1152
+msgid "Restored plugin is missing: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:920
+msgid "Restoring database and updating URLs"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:919
+msgid "Restoring website files"
+msgstr ""
+
+#: assets/background.js:18
+msgid "Resume background"
+msgstr ""
+
+#: assets/admin.js:470 assets/admin.js:475 includes/class-uwhsm-admin.php:311 includes/class-uwhsm-admin.php:377 includes/class-uwhsm-drive.php:298
+msgid "Resume Drive upload"
+msgstr ""
+
+#: assets/admin.js:553
+msgid "Resume Import"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:348
+msgid "Resume interrupted backup"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:446
+msgid "Resume interrupted direct migration"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:237 includes/class-uwhsm-admin.php:359
+msgid "Resume interrupted restore"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:447
+msgid "Resume interrupted restore / rollback"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:360
+msgid "Resume saved restore"
+msgstr ""
+
+#: assets/admin.js:282
+msgid "Resuming backup"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:767 includes/class-uwhsm-engine.php:775
+msgid "Resuming existing restore"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:767
+msgid "Resuming rollback"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1033
+msgid "Resuming safety checkpoint"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1035
+msgid "Resuming saved restore"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:591
+msgid "Review backup, restore, Drive, migration, rollback and automation activity from one place."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:596
+msgid "Review failed events below"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:435
+msgid "Revoke key"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:129 includes/class-uwhsm-admin.php:403
+msgid "Rollback"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:801
+msgid "Rollback checkpoint is not complete yet."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:800
+msgid "Rollback checkpoint job is missing."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:892 includes/class-uwhsm-engine.php:923
+msgid "Rollback complete"
+msgstr ""
+
+#: assets/admin.js:351
+msgid "Rollback complete — homepage needs review"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:883
+msgid "Rollback completed and the previous site state was restored."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:989
+msgid "Rollback could not remove a file created after the checkpoint: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:908
+msgid "Rollback failed."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1064
+msgid "Rollback found an unsafe database table name."
+msgstr ""
+
+#: assets/admin.js:337
+msgid "Rollback restored files and database — checking homepage"
+msgstr ""
+
+#: assets/admin.js:559
+msgid "Rollback this website to the selected safety checkpoint? A new checkpoint of the current site will be created first."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:920
+msgid "Rolling back database"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:919
+msgid "Rolling back website files"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:647
+msgid "Runtime values that commonly affect large backups and imports."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:807
+msgid "Safety checkpoint complete — starting restore"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:504
+msgid "Safety checkpoint completed."
+msgstr ""
+
+#: assets/admin.js:371
+msgid "Safety checkpoint created: %s. Starting restore."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1190
+msgid "Safety checkpoint deleted."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:493
+msgid "Safety checkpoint failed."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:665
+msgid "Safety checkpoints"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:569
+msgid "Safety checkpoints: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:270
+msgid "Save Auto Backup Settings"
+msgstr ""
+
+#: assets/admin.js:416
+msgid "Saved restore session is missing."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:250
+msgid "Saved:"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:407
+msgid "Scanning website files"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:133
+msgid "Schedule"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:235
+msgid "Schedule unattended backups and send them to Google Drive."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:258
+msgid "Scheduled backup could not start."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:239
+msgid "Scheduled backup started."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:650
+msgid "sec"
+msgstr ""
+
+#: assets/admin.js:592
+msgid "Secure migration key ready for %s."
+msgstr ""
+
+#: includes/class-uwhsm-compat.php:195 includes/class-uwhsm-compat.php:208
+msgid "Security check failed. Refresh the page and try again."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:578
+msgid "Security note: migration keys, restore tokens, OAuth access tokens and passwords are intentionally excluded."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:355
+msgid "Select a .uwh backup created by UWH Site Migrator."
+msgstr ""
+
+#: assets/admin.js:316
+msgid "Selected website backup: "
+msgstr ""
+
+#: assets/admin.js:187 assets/admin.js:464 includes/class-uwhsm-admin.php:311 includes/class-uwhsm-admin.php:377
+msgid "Send to Drive"
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:18
+msgid "Serialized data nesting is too deep."
+msgstr ""
+
+#: assets/admin.js:703
+msgid "Server request failed. Please try again."
+msgstr ""
+
+#: assets/admin.js:14
+msgid "Server returned an invalid response. The plugin will retry automatically."
+msgstr ""
+
+#: uwh-site-migrator.php:43
+msgid "Settings"
+msgstr ""
+
+#: assets/admin.js:693
+msgid "Settings saved successfully!"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:654 includes/class-uwhsm-admin.php:67
+msgid "Site Migrator"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:259
+msgid "Site Migrator automatic backup could not start: "
+msgstr ""
+
+#: includes/class-uwhsm-background.php:13 includes/class-uwhsm-compat.php:97
+msgid "Site Migrator background minute"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:544
+msgid "SITE MIGRATOR DIAGNOSTIC REPORT"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:597
+msgid "Site Migrator operations"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:15
+msgid "Site Migrator requires PHP 7.4 or newer."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:16
+msgid "Site Migrator requires the PHP ZipArchive extension. Ask your host to enable php-zip."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:164
+msgid "Site Migrator sections"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:549
+msgid "Site URL: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:298 includes/class-uwhsm-admin.php:366 includes/class-uwhsm-admin.php:395 includes/class-uwhsm-drive.php:302
+msgid "Size"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:588
+msgid "Skipped temporary runtime file: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:302
+msgid "Source"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:331
+msgid "Source chunk length mismatch. The transfer can be resumed safely."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:303
+msgid "Source package downloaded"
+msgstr ""
+
+#: assets/admin.js:653
+msgid "Source package downloaded — validating and creating safety checkpoint"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:265
+msgid "Source package size is outside the supported range."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:246
+msgid "Source site rejected the migration connection."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:328
+msgid "Source transfer failed: "
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:330
+msgid "Source transfer returned HTTP "
+msgstr ""
+
+#: assets/admin.js:620
+msgid "Source URL: %1$s\nMigration Key: %2$s"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:433 includes/class-uwhsm-admin.php:442
+msgid "Source WordPress URL"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:748
+msgid "Source: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:251
+msgid "Start restore"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:141
+msgid "Started"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:298 includes/class-uwhsm-admin.php:366 includes/class-uwhsm-admin.php:530 includes/class-uwhsm-admin.php:616 includes/class-uwhsm-admin.php:687
+msgid "Status"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:146
+msgid "Stopped"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:660
+msgid "Storage & recovery"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:662 includes/class-uwhsm-engine.php:304
+msgid "Storage access"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:266
+msgid "Storage behavior"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:668
+msgid "Storage path:"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:559
+msgid "Storage path: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:560
+msgid "Storage writable: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:594
+msgid "Stored Events"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:231
+msgid "Stored migration authorization is damaged. Restart the direct migration."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:142
+msgid "Success"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:595
+msgid "Successful"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:432
+msgid "Symbolic links are not supported: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:134 includes/class-uwhsm-admin.php:623
+msgid "System"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:272
+msgid "temporary"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:303
+msgid "Temporary"
+msgstr ""
+
+#: assets/admin.js:513
+msgid "Temporary backup record cleared."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:499
+msgid "Temporary cleanup is pending."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1326
+msgid "Temporary files could not be removed. Check file ownership and permissions."
+msgstr ""
+
+#: assets/admin.js:352
+msgid "The automatic rollback finished, but the homepage check did not pass. Review the destination error log and the retained safety checkpoint."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1001
+msgid "The backup does not contain the missing staged file: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1332
+msgid "The backup exists but could not be deleted. Check file ownership/permissions."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:124
+msgid "The completed local backup is missing. Restore the local archive before retrying."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:126
+msgid "The local backup changed after this Drive transfer was queued. Queue the current completed backup again."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:448
+msgid "The local backup ended before the queued byte range."
+msgstr ""
+
+#: assets/admin.js:345
+msgid "The migration did not complete, but the automatic safety checkpoint was restored successfully."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:813
+msgid "The original backup archive is missing."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:997
+msgid "The original backup archive is missing. Keep this restore paused and recover it from hosting backup; do not delete the job files."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:412
+msgid "The previous Google upload session expired; a fresh session will start."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:102
+msgid "The previously uploaded Drive file was removed. A new transfer has been queued from the retained local backup."
+msgstr ""
+
+#: assets/admin.js:593
+msgid "the selected backup"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:644
+msgid "The selected Drive file is not a Site Migrator backup created by this app."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:805
+msgid "The selected Google Drive backup was not found."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:713
+msgid "The server could not read the uploaded chunk."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:146
+msgid "The setting was saved as %s, but WordPress could not create the WP-Cron event. Check DISABLE_WP_CRON / hosting cron configuration."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:120
+msgid "The shared migration package is no longer available."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:354
+msgid "The source package has not finished downloading."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:264
+msgid "The source site must run Site Migrator 2.1.0 or newer for Direct Migration."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:715
+msgid "The uploaded chunk is empty. Check PHP upload limits."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:616 includes/class-uwhsm-drive-transfer.php:628
+msgid "This backup already exists locally."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1309
+msgid "This backup is currently shared by an active Direct Migration key. Revoke the key before deleting the backup."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1313
+msgid "This backup is the source of an unfinished restore. Resume or finish that restore before deleting it."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1189
+msgid "This checkpoint is protecting an unfinished restore and cannot be deleted."
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:272
+msgid "This destination uses 32-bit PHP and cannot safely migrate a package larger than 2 GB."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:31
+msgid "This Drive connection belongs to another site or its WordPress security keys changed."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:657
+msgid "This interrupted backup predates integrity checks. Create a new backup."
+msgstr ""
+
+#: assets/installer-guard.js:9
+msgid "This is a website backup, not a plugin installer. "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:24
+msgid "This is a website backup, not a plugin. Open Site Migrator → Import / Export and select this backup there."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:818
+msgid "This is not a compatible Site Migrator backup."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1219
+msgid "This is not an automatic backup; local archive was kept."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:679
+msgid "This is the UWH Site Migrator plugin installer ZIP. Please select a website backup file (.uwh) instead."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:819
+msgid "This old package may omit required plugin files. Create a NEW backup on the original working site using Site Migrator 1.3.0 or newer."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:849
+msgid "This release requires InnoDB tables for retry-safe restore: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:610
+msgid "This release supports InnoDB tables only: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:222 includes/class-uwhsm-engine.php:394
+msgid "This server uses 32-bit PHP and cannot reliably create backups larger than 2 GB. Ask the host to enable 64-bit PHP."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:682
+msgid "This server uses 32-bit PHP and cannot restore a package larger than 2 GB."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:341
+msgid "This server uses 32-bit PHP and cannot safely create the rollback checkpoint."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:41
+msgid "This ZIP is a full website backup. Use %sSite Migrator → Import / Export%s to upload it."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:616
+msgid "Time"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:530
+msgid "Time UTC"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:664
+msgid "Total disk"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:297
+msgid "Total size"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:161 includes/class-uwhsm-drive-transfer.php:228 includes/class-uwhsm-drive-transfer.php:295 includes/class-uwhsm-drive-transfer.php:301 includes/class-uwhsm-drive-transfer.php:316 includes/class-uwhsm-drive-transfer.php:595
+msgid "Transfer test access is disabled."
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:87 includes/class-uwhsm-drive-transfer.php:88
+msgid "Transfer test seam is disabled."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:162 includes/class-uwhsm-admin.php:73
+msgid "Troubleshooting"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:634
+msgid "Troubleshooting & Diagnostics"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:430
+msgid "Unable to scan WordPress files: "
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:312
+msgid "Unexpected Google Drive API URL."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1027
+msgid "Unfinished restore not found."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:845
+msgid "Unindexed archive entry."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:561
+msgid "Unknown"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:270
+msgid "unknown"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:206
+msgid "Unknown Google Drive action."
+msgstr ""
+
+#: assets/admin.js:92
+msgid "Unknown source"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:845
+msgid "Unsafe archive path."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:847
+msgid "Unsupported database table name."
+msgstr ""
+
+#: includes/class-uwhsm-value-rewriter.php:36
+msgid "Unsupported serialized value. Migration stopped to avoid data corruption."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1092
+msgid "Unsupported table schema: "
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:354
+msgid "Upload a UWH Site Migrator backup (.uwh) and restore it on this WordPress installation."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:358
+msgid "Upload and restore"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:705
+msgid "Upload batch busy. Retrying."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:711
+msgid "Upload chunk is missing."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:710
+msgid "Upload chunk is out of order."
+msgstr ""
+
+#: assets/admin.js:404
+msgid "Upload complete — validating backup archive"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:778
+msgid "Upload is incomplete."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:651
+msgid "Upload max filesize"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:554
+msgid "Upload max: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:707
+msgid "Upload session not found."
+msgstr ""
+
+#: assets/admin.js:72
+msgid "Uploaded %s."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:303
+msgid "Uploading"
+msgstr ""
+
+#: assets/admin.js:398
+msgid "Uploading backup · %1$s / %2$s MB · %3$s MB/s"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:283
+msgid "Uploading to Google Drive"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:530 includes/class-uwhsm-admin.php:616
+msgid "User"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:563 includes/class-uwhsm-admin.php:565 includes/class-uwhsm-admin.php:576
+msgid "UTC"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:303
+msgid "UWH / ZIP"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:918
+msgid "Verifying backup and preparing database"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:704
+msgid "View failure logs"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:299
+msgid "Wait loading Site Migrator backups from Google Drive…"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:283
+msgid "Waiting to retry Google Drive"
+msgstr ""
+
+#: assets/admin.js:104 includes/class-uwhsm-admin.php:238 includes/class-uwhsm-admin.php:318 includes/class-uwhsm-admin.php:356 includes/class-uwhsm-admin.php:382 includes/class-uwhsm-admin.php:448 includes/class-uwhsm-drive.php:298
+msgid "Waiting…"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:144
+msgid "Warning"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:249
+msgid "Website files and the database on this site will be replaced using"
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:1051
+msgid "Website migration is paused or in progress. Administrators can sign in to resume it."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:119 includes/class-uwhsm-drive.php:246 includes/class-uwhsm-drive.php:250 includes/class-uwhsm-engine.php:147
+msgid "Weekly"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:653
+msgid "WordPress"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:178
+msgid "WORDPRESS MIGRATION SUITE"
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:49
+msgid "WordPress Multisite is not supported."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:191
+msgid "WordPress Multisite is not supported. Please use this plugin only on a standard single-site installation."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:281
+msgid "WordPress Multisite is not supported. Use Site Migrator on a standard single-site installation."
+msgstr ""
+
+#: includes/class-uwhsm-drive.php:256
+msgid "WordPress site timezone:"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:547
+msgid "WordPress version: "
+msgstr ""
+
+#: includes/class-uwhsm-site-transfer.php:268
+msgid "WordPress versions must match before direct migration. Destination: %1$s; source: %2$s."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:502
+msgid "WP-Cron"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:564
+msgid "WP-Cron disabled: "
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:141
+msgid "WP-Cron event registration failed"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:681
+msgid "wp-cron.php"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:500 includes/class-uwhsm-admin.php:662 includes/class-uwhsm-engine.php:304
+msgid "Writable"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:551 includes/class-uwhsm-admin.php:560 includes/class-uwhsm-admin.php:564 includes/class-uwhsm-admin.php:622
+msgid "Yes"
+msgstr ""
+
+#: assets/admin.js:315
+msgid "You selected the UWH Site Migrator plugin installer ZIP. Please select a UWH Site Migrator website backup file (.uwh) instead."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:659
+msgid "ZIP finalization failed. Check free disk space."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:497
+msgid "ZipArchive"
+msgstr ""
+
+#: includes/class-uwhsm-drive-transfer.php:612 includes/class-uwhsm-drive-transfer.php:762
+msgid "ZipArchive extension is missing."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php:556
+msgid "ZipArchive: "
+msgstr ""
+
+#: includes/class-uwhsm-drive.php
+msgid "Cannot save Drive settings in WordPress."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php
+msgid "Invalid restore guard state."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php
+msgid "PHP 7.4 or newer is required."
+msgstr ""
+
+#: includes/class-uwhsm-admin.php
+msgid "PHP ZipArchive is missing. Backup and restore features stay unavailable until your host enables php-zip."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php
+msgid "Site Migrator maintenance"
+msgstr ""
+
+#: includes/class-uwhsm-admin.php
+msgid "United Web Host Site Migrator:"
+msgstr ""
+
+#: includes/class-uwhsm-drive.php
+msgid "Could not redirect to the Google Drive authorization gateway."
+msgstr ""
+
+msgid "Paste connection details"
+msgstr ""
+
+msgid "Pastes the copied source URL and migration key into the correct fields automatically."
+msgstr ""
+
+msgid "Clipboard does not contain connection details."
+msgstr ""
+
+msgid "Clipboard connection details are invalid. Copy them again from the source site."
+msgstr ""
+
+msgid "The copied source URL is invalid."
+msgstr ""
+
+msgid "The copied source URL must be a secure HTTPS WordPress URL."
+msgstr ""
+
+msgid "The copied migration key is invalid."
+msgstr ""
+
+msgid "Paste the copied connection details here."
+msgstr ""
+
+msgid "Connection details pasted into the correct fields."
+msgstr ""
+
+msgid "Pasted"
+msgstr ""
+
+msgid "Could not read connection details from the clipboard."
+msgstr ""
+
+msgid "Clipboard access was blocked. Paste the copied connection details here."
+msgstr ""
+
+msgid "Press Ctrl+V"
+msgstr ""
+
+#: assets/admin.js
+msgid "Please choose a UWH Site Migrator website backup file (.uwh)."
+msgstr ""
