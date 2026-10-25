@@ -1,4 +1,3 @@
-
 name: Sync WordPress.org SVN
 
 on:
@@ -20,14 +19,14 @@ jobs:
 
     steps:
       - name: Checkout GitHub repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install SVN and rsync
         run: |
           sudo apt-get update
           sudo apt-get install -y subversion rsync
 
-      - name: Export WordPress.org SVN
+      - name: Export and validate WordPress.org SVN
         env:
           SVN_URL: https://plugins.svn.wordpress.org/uwh-site-migrator
         shell: bash
@@ -40,11 +39,14 @@ jobs:
           test -s "$SOURCE/trunk/readme.txt"
           compgen -G "$SOURCE/trunk/*.php" > /dev/null
           test -d "$SOURCE/tags"
+          test -d "$SOURCE/assets"
 
-          mkdir -p wordpress-org
-          rsync -a --delete "$SOURCE/" wordpress-org/
+          for dir in trunk tags assets; do
+            mkdir -p "$dir"
+            rsync -a --delete "$SOURCE/$dir/" "$dir/"
+          done
 
-      - name: Commit and push changes
+      - name: Commit and push root folders
         shell: bash
         run: |
           set -euo pipefail
@@ -52,12 +54,15 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          git add -- wordpress-org/
+          # Remove the previous mirrored folder ONLY in GitHub.
+          # Does not change WordPress.org SVN or unrelated GitHub files.
+          git rm -r --ignore-unmatch -- wordpress-org
+          git add -A -- trunk tags assets
 
           if git diff --cached --quiet; then
-            echo "No changes found."
+            echo 'No changes found.'
             exit 0
           fi
 
-          git commit -m "Sync published plugin SVN mirror from WordPress.org"
+          git commit -m 'Sync WordPress.org SVN into repository root'
           git push origin "HEAD:${GITHUB_REF_NAME}"
