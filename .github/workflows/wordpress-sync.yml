@@ -1,0 +1,63 @@
+
+name: Sync WordPress.org SVN
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13,28,43,58 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wordpress-svn-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout GitHub repository
+        uses: actions/checkout@v4
+
+      - name: Install SVN and rsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y subversion rsync
+
+      - name: Export WordPress.org SVN
+        env:
+          SVN_URL: https://plugins.svn.wordpress.org/uwh-site-migrator
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/wordpress-org-export"
+
+          svn export --non-interactive "$SVN_URL" "$SOURCE"
+
+          test -s "$SOURCE/trunk/readme.txt"
+          compgen -G "$SOURCE/trunk/*.php" > /dev/null
+          test -d "$SOURCE/tags"
+
+          mkdir -p wordpress-org
+          rsync -a --delete "$SOURCE/" wordpress-org/
+
+      - name: Commit and push changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git add -- wordpress-org/
+
+          if git diff --cached --quiet; then
+            echo "No changes found."
+            exit 0
+          fi
+
+          git commit -m "Sync published plugin SVN mirror from WordPress.org"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
