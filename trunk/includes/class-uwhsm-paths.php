@@ -65,6 +65,19 @@ final class UWHSM_Paths {
         return $roots;
     }
 
+    /**
+     * Inactive Apache configuration backup copies are not required for a
+     * working WordPress site. The active .htaccess is already host-managed
+     * and excluded separately. Keep this allowlist deliberately narrow:
+     * never suppress missing themes, plugins, uploads or arbitrary dotfiles.
+     *
+     * Also applies when restoring an older .uwh archive containing this file.
+     */
+    public static function is_optional_server_config_backup( $relative ) {
+        $relative = ltrim( wp_normalize_path( (string) $relative ), '/' );
+        return '.htaccess.bk' === strtolower( basename( $relative ) );
+    }
+
     /** Map an archive-relative file path to a valid destination root. */
     public static function restore_target( $relative ) {
         $relative = wp_normalize_path( (string) $relative );
@@ -131,6 +144,25 @@ final class UWHSM_Paths {
     }
 
     /**
+     * Recognize one high-confidence indicator of the reported SC WordPress
+     * malware family: a dot-prefixed directory named .sc_ plus eight hex
+     * digits immediately under wp-content. The directory is not a normal
+     * WordPress design/theme/media location. A matching name is an indicator,
+     * NOT proof of infection; never delete an existing source/destination file.
+     * This guard only prevents copying this narrowly scoped location.
+     *
+     * @param string $relative Portable site-relative path, optionally site/-prefixed.
+     * @return bool
+     */
+    public static function is_suspicious_sc_loader_path( $relative ) {
+        $relative = ltrim( wp_normalize_path( (string) $relative ), '/' );
+        if ( 0 === strpos( $relative, 'site/' ) ) {
+            $relative = substr( $relative, 5 );
+        }
+        return (bool) preg_match( '#^wp-content/\.sc_[a-f0-9]{8}(?:/|$)#iD', $relative );
+    }
+
+    /**
      * A safe real filesystem scan without assuming uploads/plugins live in wp-content.
      * Four scans avoid missing moved directories; more-specific roots take priority,
      * so nested/default WordPress locations are archived just once.
@@ -179,8 +211,25 @@ final class UWHSM_Paths {
             $directory = new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS );
             $filter = new RecursiveCallbackFilterIterator(
                 $directory,
-                static function ( $item ) use ( $root, $excluded_roots ) {
+                static function ( $item ) use ( $root, $excluded_roots, $scan ) {
                     $path = wp_normalize_path( $item->getPathname() );
+                    // Prune the suspect folder before traversing its contents.
+                    // Logging is deduplicated and does not disclose file contents.
+                    $relative = ltrim( substr( $path, strlen( $root ) ), '/' );
+                    $archive_rel = $scan['prefix'] . $relative;
+                    if ( self::is_suspicious_sc_loader_path( $archive_rel ) ) {
+                        if ( class_exists( 'UWHSM_Logger' ) ) {
+                            UWHSM_Logger::log_once(
+                                'backup-excluded-sc-' . md5( $archive_rel ),
+                                'backup',
+                                'warning',
+                                __( 'Excluded a hidden folder matching a known malware indicator. Inspect and clean the source site before migration.', 'uwh-site-migrator' ),
+                                array( 'message' => $archive_rel ),
+                                7 * DAY_IN_SECONDS
+                            );
+                        }
+                        return false;
+                    }
                     foreach ( $excluded_roots as $excluded ) {
                         if ( self::inside( $path, $excluded ) && ! self::inside( $root, $excluded ) ) {
                             return false;
@@ -214,7 +263,7 @@ final class UWHSM_Paths {
                 }
                 $relative = ltrim( substr( $path, strlen( $root ) ), '/' );
                 $archive_rel = $scan['prefix'] . $relative;
-                if ( '' === $relative || self::is_external_backup_archive_path( $archive_rel ) || in_array( $archive_rel, array( 'wp-config.php', '.user.ini', 'php.ini', '.htaccess', '.maintenance' ), true ) || ( $ephemeral_callback && call_user_func( $ephemeral_callback, $archive_rel ) ) ) {
+                if ( '' === $relative || self::is_suspicious_sc_loader_path( $archive_rel ) || self::is_external_backup_archive_path( $archive_rel ) || in_array( $archive_rel, array( 'wp-config.php', '.user.ini', 'php.ini', '.htaccess', '.maintenance' ), true ) || ( $ephemeral_callback && call_user_func( $ephemeral_callback, $archive_rel ) ) ) {
                     continue;
                 }
                 // Never include a misplaced storage directory in a portable backup.

@@ -1,3 +1,13 @@
+2.4.13 — Optional .htaccess.bk restore compatibility:
+- Exclude inactive .htaccess.bk backup copies from newly created site archives. When older archives include them, do not copy or require these optional files in post-restore verification.
+- Resume already-paused verification jobs safely; retain strict checksum checks for all required site files, and log each optional exclusion as informational.
+- Keep active server configuration protected and preserve transfer/restore/database/Elementor/Google Drive functionality.
+
+2.4.12 – Elementor restore-finalization compatibility (v2.4.5 behavior):
+- Retire the extra 99% Elementor/template postmeta byte-comparison and rewrite pass introduced after v2.4.5. Imported Elementor layout and display-condition metadata now remains untouched after database import.
+- Interrupted jobs paused at postmeta verification skip that retired pass on Resume. Keep verified database imports, slug reconciliation, archive/template presence checks, file SHA-256 checks, backup/Drive and recovery.
+- Plugin versions and names remain unchanged for this compatibility patch.
+
 2.4.12 - Serialized data compatibility release:
 - Prevent malformed source serialized values from aborting URL/path rewrite at restore finalization; keep their original bytes and emit an activity warning.
 - Continue safe byte-length updates for valid serialized data, without changing other migration, backup, Drive or recovery behavior.

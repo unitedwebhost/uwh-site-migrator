@@ -4,9 +4,9 @@
   const $ = s => document.querySelector(s);
   const post = async (action, data = {}, isForm = false) => {
     let last;
-    // Backup batches may complete on the server even when a proxy loses the reply.
-    // Keep transport retries bounded; the backup loop reconciles durable job state.
-    const maxAttempts = ['uwhsm_backup_step', 'uwhsm_restore_step', 'uwhsm_restore_status'].includes(action) ? 2 : 4;
+    // Chunk endpoints use saved server state to recover from a lost reply.
+    // Avoid stacking long HTTP retries inside the transport wrapper.
+    const maxAttempts = ['uwhsm_backup_step', 'uwhsm_restore_step', 'uwhsm_restore_status', 'uwhsm_site_pull_step'].includes(action) ? 2 : 4;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         let body;
@@ -1260,10 +1260,17 @@
   const continueDirectPull = async (pull, skipMissingPlugins = false) => {
     localStorage.setItem('svmDirectPull', pull.pull_id);
     if (directResume) directResume.hidden = true;
+    // Clear any stale red warning when retry/resume begins.
+    if (directDestinationLog) log(directDestinationLog, '');
     const startedAt = Date.now(), initialBytes = Number(pull.bytes_received) || 0;
+    let automaticRetries = 0;
+    let shrinkNextChunk = false;
+    let lastCommittedBytes = Number(pull.bytes_received) || 0;
     while (!pull.done) {
       const elapsed = Math.max(.001, (Date.now() - startedAt) / 1000);
-      const speed = Math.max(0, Number(pull.bytes_received) - initialBytes) / elapsed;
+      const sessionSpeed = Math.max(0, Number(pull.bytes_received) - initialBytes) / elapsed;
+      // Rolling network rate is more informative after retries than the entire session average.
+      const speed = Number(pull.recent_speed_bps) > 0 ? Number(pull.recent_speed_bps) : sessionSpeed;
       progress(directDestinationProgress, Number(pull.progress || 0) * .35, sprintf(
         /* translators: 1: transfer status, 2: downloaded size, 3: total size, 4: speed in MB/s. */
         __('%1$s · %2$s / %3$s · %4$s MB/s', 'uwh-site-migrator'),
@@ -1272,8 +1279,52 @@
         humanBytes(pull.bytes_total),
         (speed / 1048576).toFixed(2)
       ));
-      await sleep(pull.busy ? 1200 : 100); pull = await post('uwhsm_site_pull_step', { pull_id: pull.pull_id });
+      if (pull.retrying && !pull.busy) {
+        automaticRetries++;
+        if (automaticRetries > 7) throw new Error(__('Source connection is still timing out. Your downloaded data is saved; click Resume interrupted direct migration to try again.', 'uwh-site-migrator'));
+        if (directDestinationLog) log(directDestinationLog, sprintf(
+          /* translators: 1: retry number; 2: maximum retries. */
+          __('Source connection interrupted. Retrying automatically (%1$d/%2$d)…', 'uwh-site-migrator'), automaticRetries, 7
+        ));
+      }
+      // Requests are sequential and locked; a short idle gap avoids 100ms of overhead per healthy chunk.
+      await sleep(pull.busy ? 1200 : pull.retrying ? Math.min(12000, Math.max(1, Number(pull.retry_after) || 1) * 1000) : 25);
+      try {
+        pull = await post('uwhsm_site_pull_step', { pull_id: pull.pull_id, reduce_chunk: shrinkNextChunk ? '1' : '0' });
+        shrinkNextChunk = false;
+        if ((Number(pull.bytes_received) || 0) > lastCommittedBytes) {
+          lastCommittedBytes = Number(pull.bytes_received);
+          automaticRetries = 0;
+          // Any previous warning disappears as soon as bytes are committed again.
+          if (directDestinationLog) log(directDestinationLog, '');
+        }
+      } catch (error) {
+        if (!error.recoverable) throw error; // Never auto-retry auth, permissions or malformed data.
+        automaticRetries++;
+        if (automaticRetries > 7) throw new Error(__('Source transfer is still unreachable. Progress is saved. Use Resume interrupted direct migration after checking hosting/network connectivity.', 'uwh-site-migrator'));
+        if (directDestinationLog) log(directDestinationLog, sprintf(
+          /* translators: 1: retry number; 2: maximum retries. */
+          __('Connection interrupted. Checking saved progress and retrying (%1$d/%2$d)…', 'uwh-site-migrator'), automaticRetries, 7
+        ));
+        await sleep(Math.min(12000, 1000 * Math.pow(2, Math.min(4, automaticRetries - 1))));
+        // A timed-out request might have committed its chunk. Reconcile first.
+        // The next locked request can shrink its chunk if no progress was made.
+        try {
+          const saved = await post('uwhsm_site_pull_status', { pull_id: pull.pull_id });
+          shrinkNextChunk = (Number(saved.bytes_received) || 0) <= lastCommittedBytes;
+          if ((Number(saved.bytes_received) || 0) > lastCommittedBytes) {
+            lastCommittedBytes = Number(saved.bytes_received);
+            automaticRetries = 0;
+            if (directDestinationLog) log(directDestinationLog, '');
+          }
+          pull = saved;
+        } catch (statusError) {
+          if (!statusError.recoverable) throw statusError;
+          shrinkNextChunk = true;
+        }
+      }
     }
+    if (directDestinationLog) log(directDestinationLog, '');
     progress(directDestinationProgress, 35, __('Source package downloaded — validating before restore', 'uwh-site-migrator'));
     let restore;
     try {
@@ -1337,10 +1388,14 @@
     directResume.hidden = !localStorage.getItem('svmDirectPull');
     directResume.addEventListener('click', async () => {
       const pullId = localStorage.getItem('svmDirectPull'); if (!pullId) return;
+      if (directMigrationBusy) return;
+      directMigrationBusy = true;
+      toggleDirectStart();
       directResume.disabled = true;
+      if (directDestinationLog) log(directDestinationLog, '');
       try { const pull = await post('uwhsm_site_pull_status', { pull_id: pullId }); await continueDirectPull(pull); }
       catch (e) { log(directDestinationLog, e.message, true); directResume.hidden = false; }
-      finally { directResume.disabled = false; }
+      finally { directResume.disabled = false; directMigrationBusy = false; toggleDirectStart(); }
     });
   }
 

@@ -3,7 +3,7 @@ Contributors: unitedwebhost
 Tags: backup, migration, restore, google-drive, site-migration
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 2.4.12
+Stable tag: 2.4.13
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -130,7 +130,12 @@ For safety, uninstall does **not** delete Site Migrator settings/options, encryp
 
 == Changelog ==
 
+= 2.4.13 =
+* Treat `.htaccess.bk` as an optional inactive server configuration backup copy during backup, restore and final file verification. Existing archives and paused verification jobs can complete when this nonessential copy is missing or altered.
+* Preserve full checksum verification for all required website files, database and Elementor settings, active server configuration safety, Direct Migration, and resumable restore.
+
 = 2.4.12 =
+* Restore v2.4.5-style Elementor finalization: avoid reprocessing imported template postmeta at 99% while retaining database/file integrity and template-presence checks. Previously interrupted jobs can resume without the retired verification step.
 * Improve cross-domain restore finalization by preserving malformed source serialized values rather than rewriting their invalid string lengths. Valid serialized settings continue to be rewritten with correct byte lengths.
 * Retain Direct Migration, backup/restore, Google Drive, Skip Missing Plugins, and recovery functionality.
 

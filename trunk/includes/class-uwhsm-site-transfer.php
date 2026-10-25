@@ -11,6 +11,16 @@ if (!defined('ABSPATH')) {
 final class UWHSM_Site_Transfer {
     const OPTION = 'uwhsm_direct_migration_sessions';
     const CHUNK_SIZE = 4 * 1024 * 1024;
+    // New endpoints advertise the larger ceiling; old v2.4.5 endpoints still advertise 4 MiB.
+    const SMART_MAX_CHUNK = 8 * 1024 * 1024;
+    const START_CHUNK_SIZE = 2 * 1024 * 1024;
+    const MIN_CHUNK_SIZE = 256 * 1024;
+    const SOURCE_TIMEOUT = 75;
+    // Keep each HTTP request comfortably below common 10-second proxy ceilings.
+    // New source endpoints advertise 8 MiB; pre-upgrade sources retain the 4 MiB cap.
+    const TARGET_CHUNK_SECONDS = 4.0;
+    const SLOW_CHUNK_SECONDS = 6.0;
+    const MAX_GROWTH_STEP = 1024 * 1024;
     const KEY_TTL = 7200;
 
     public static function boot() {
@@ -195,7 +205,7 @@ final class UWHSM_Site_Transfer {
             'wp_version' => get_bloginfo('version'),
             'php_version' => PHP_VERSION,
             'plugin_version' => UWHSM_VERSION,
-            'chunk_size' => self::CHUNK_SIZE,
+            'chunk_size' => self::SMART_MAX_CHUNK,
             'expires' => (int) $auth['session']['expires'],
         ));
     }
@@ -210,7 +220,8 @@ final class UWHSM_Site_Transfer {
         $size = (int) $record['size'];
         $offset = (UWHSM_Compat::get_value('offset') !== '' ? absint(UWHSM_Compat::get_value('offset')) : 0);
         $length = (UWHSM_Compat::get_value('length') !== '' ? absint(UWHSM_Compat::get_value('length')) : self::CHUNK_SIZE);
-        $length     = max(1, min(self::CHUNK_SIZE, $length));
+        // Negotiated fast transfers can request up to 8 MiB; legacy callers keep 4 MiB by default.
+        $length     = max(1, min(self::SMART_MAX_CHUNK, $length));
         if ($offset >= $size) {
             status_header(416);
             exit;
@@ -231,6 +242,8 @@ final class UWHSM_Site_Transfer {
         // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Large archive streaming is resumable, but this request may legitimately exceed the host default execution limit.
         @set_time_limit(0);
         nocache_headers();
+        // Prevent reverse proxies/CDNs from caching or transforming authenticated byte ranges.
+        header('Cache-Control: private, no-store, no-cache, must-revalidate, no-transform');
         status_header(206);
         header('Content-Type: application/octet-stream');
         header('Content-Length: ' . $length);
@@ -354,10 +367,21 @@ final class UWHSM_Site_Transfer {
     }
 
     private static function remote_json($url, $key) {
-        $response = wp_safe_remote_get($url, array(
-            'timeout' => 25, 'redirection' => 0, 'reject_unsafe_urls' => true,
-            'headers' => array('X-SVM-Migration-Key' => $key, 'Accept' => 'application/json'),
-        ));
+        // TLS alert 80 / cURL 35 can be transient during source server/proxy
+        // handshakes. Retry metadata requests a few times, but never disable
+        // HTTPS verification, allow redirects, or retry authentication errors.
+        $response = null;
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $response = wp_safe_remote_get($url, array(
+                'timeout' => 60, 'redirection' => 0, 'reject_unsafe_urls' => true,
+                'sslverify' => true,
+                'headers' => array('X-SVM-Migration-Key' => $key, 'Accept' => 'application/json'),
+            ));
+            if (!self::transient_tls_alert($response) || 2 === $attempt) {
+                break;
+            }
+            usleep(($attempt + 1) * 250000);
+        }
         if (is_wp_error($response)) {
             throw new RuntimeException(esc_html__('Could not reach the source site: ', 'uwh-site-migrator') . esc_html($response->get_error_message()));
         }
@@ -598,11 +622,22 @@ final class UWHSM_Site_Transfer {
             if (false === file_put_contents($archive, '')) {
                 throw new RuntimeException(__('Could not create the destination package file.', 'uwh-site-migrator'));
             }
+            // Prefer a small destination memory footprint even when the source supports 8 MiB.
+            // A 32-bit or resource-constrained PHP process never needs the larger response buffer.
+            $source_limit = min(self::SMART_MAX_CHUNK, max(self::MIN_CHUNK_SIZE, (int) ($meta['chunk_size'] ?? self::CHUNK_SIZE)));
+            $memory_bytes = function_exists('wp_convert_hr_to_bytes') ? (int) wp_convert_hr_to_bytes((string) ini_get('memory_limit')) : 0;
+            if (PHP_INT_SIZE < 8 || ($memory_bytes > 0 && $memory_bytes < 96 * 1024 * 1024)) {
+                $source_limit = min(self::CHUNK_SIZE, $source_limit);
+            }
             $state = array(
                 'type' => 'site_pull', 'pull_id' => $id, 'source_url' => rtrim($source, '/'),
                 'protected_key' => self::protect_secret($key), 'backup_name' => sanitize_file_name((string) ($meta['backup_name'] ?? 'source.uwh')),
                 'source_domain' => sanitize_text_field((string) ($meta['source_domain'] ?? '')), 'size' => $size, 'received' => 0,
-                'chunk_size' => min(self::CHUNK_SIZE, max(256 * 1024, (int) ($meta['chunk_size'] ?? self::CHUNK_SIZE))),
+                'source_chunk_limit' => $source_limit,
+                'chunk_size' => min(self::START_CHUNK_SIZE, $source_limit),
+                'transient_failures' => 0, 'retrying' => false, 'retry_after' => 0, 'successful_chunks' => 0,
+                // Download throughput estimate is scoped to this pull and persisted for safe resumes.
+                'transfer_rate_bps' => 0, 'last_chunk_seconds' => 0,
                 'archive' => $archive, 'status' => 'pulling', 'created' => time(), 'updated' => time(), 'restore_started' => false,
             );
             self::write_state($id, $state);
@@ -622,7 +657,157 @@ final class UWHSM_Site_Transfer {
             'progress' => min(100, ($received / $size) * 100), 'bytes_received' => $received, 'bytes_total' => $size,
             'backup_name' => $state['backup_name'], 'source_domain' => $state['source_domain'],
             'status' => $state['status'], 'label' => $received >= $size ? __('Source package downloaded', 'uwh-site-migrator') : __('Pulling website package from source', 'uwh-site-migrator'),
+            // Only non-sensitive retry metadata is exposed; the stored source authorization is never returned.
+            'retrying' => !empty($state['retrying']) && $received < $size,
+            'retry_after' => max(0, (int) ($state['retry_after'] ?? 0)),
+            'retry_count' => max(0, (int) ($state['transient_failures'] ?? 0)),
+            'recent_speed_bps' => max(0, (int) ($state['transfer_rate_bps'] ?? 0)),
         );
+    }
+
+    /**
+     * Retry only a known transient TLS connection alert. cURL 60/certificate,
+     * authorization, invalid credentials and hostname-verification failures
+     * must never be bypassed or treated as recoverable TLS handshakes.
+     */
+    private static function transient_tls_alert($error) {
+        if (!is_wp_error($error)
+            || !in_array($error->get_error_code(), array('http_request_failed', 'http_request_not_executed'), true)) {
+            return false;
+        }
+        $message = (string) $error->get_error_message();
+        return (bool) preg_match('/cURL error 35\b/i', $message)
+            && (bool) preg_match('/TLS connect error|tlsv1 alert internal error|SSL routines|SSL_ERROR_SYSCALL|SSL handshake/i', $message)
+            && !(bool) preg_match('/certificate|verification failed|self.signed|unknown ca|hostname mismatch/i', $message);
+    }
+
+    /** Only transport failures are recoverable; certificate/auth problems stop. */
+    private static function transient_source_error($error) {
+        if (!is_wp_error($error)) {
+            return false;
+        }
+        $message = (string) $error->get_error_message();
+        return self::transient_tls_alert($error)
+            || (in_array($error->get_error_code(), array('http_request_failed', 'http_request_not_executed'), true)
+                && (bool) preg_match('/cURL error (?:7|18|28|52|56)\b|timed? out|timeout|connection (?:reset|closed|refused)|temporar(?:y|ily)|could not resolve/i', $message));
+    }
+
+    /**
+     * Adapt to measured end-to-end request time while respecting the source's
+     * advertised capacity. Fixed WordPress/proxy overhead can dominate a slow
+     * request, so a successful 4-6 second chunk should NOT cause the controller
+     * to collapse to ever smaller chunks. Only a near-timeout request or an
+     * actual transport failure should promptly shrink the next chunk.
+     * Older sources never receive requests above their advertised 4 MiB limit.
+     */
+    private static function adaptive_chunk_after_success($current, $bytes, $seconds, $previous_rate, $ceiling = self::CHUNK_SIZE) {
+        $ceiling = max(self::MIN_CHUNK_SIZE, min(self::SMART_MAX_CHUNK, (int) $ceiling));
+        $current = max(self::MIN_CHUNK_SIZE, min($ceiling, (int) $current));
+        $seconds = max(0.05, (float) $seconds);
+        $sample_rate = max(1.0, (int) $bytes / $seconds);
+        $previous_rate = max(0.0, (float) $previous_rate);
+        $rate = $previous_rate > 0 ? (0.60 * $previous_rate + 0.40 * $sample_rate) : $sample_rate;
+        // Do not penalize benign latency or unrepresentative final short chunks.
+        $next = $current;
+        if ($seconds >= self::SLOW_CHUNK_SECONDS) {
+            $next = (int) floor($current * 0.70);
+        } elseif ($seconds <= 4.75 && $bytes >= $current) {
+            $target = (int) floor($rate * self::TARGET_CHUNK_SECONDS);
+            if ($target > $current) {
+                // Only fast, repeatable responses earn 1 MiB growth steps.
+                $step = $seconds < 2.25 ? self::MAX_GROWTH_STEP : (int) (self::MAX_GROWTH_STEP / 2);
+                $next = min($target, $current + $step);
+            }
+        }
+        $next = max(self::MIN_CHUNK_SIZE, min($ceiling, $next));
+        $next = max(self::MIN_CHUNK_SIZE, (int) floor($next / self::MIN_CHUNK_SIZE) * self::MIN_CHUNK_SIZE);
+        return array('chunk_size' => $next, 'transfer_rate_bps' => (int) round($rate));
+    }
+
+    /**
+     * Validate an advertised byte range before it is committed to disk.
+     * Some misconfigured proxies serve a cached first chunk with HTTP 200 or
+     * ignore the requested offset; identical byte counts alone are unsafe.
+     * Missing Content-Range is tolerated for 206 from legacy/proxy endpoints,
+     * but any present Content-Range must match the requested exact span.
+     */
+    private static function valid_source_range($response, $offset, $length, $total) {
+        $code = (int) wp_remote_retrieve_response_code($response);
+        if (206 !== $code && !(200 === $code && 0 === (int) $offset)) {
+            return false;
+        }
+        $range = wp_remote_retrieve_header($response, 'content-range');
+        if (is_array($range)) {
+            $range = reset($range);
+        }
+        $range = trim((string) $range);
+        if ('' === $range) {
+            return true;
+        }
+        if (!preg_match('/^bytes\s+(\d+)-(\d+)\/(\d+)$/iD', $range, $match)) {
+            return false;
+        }
+        return (string) $offset === $match[1]
+            && (string) ($offset + $length - 1) === $match[2]
+            && (string) $total === $match[3];
+    }
+
+    /** Write the entire accepted response, including on filesystems with short writes. */
+    private static function commit_chunk($archive, $offset, $body) {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Fixed-size binary chunks require a seekable native stream for resumable transfer.
+        $fh = @fopen($archive, 'c+b');
+        if (!$fh) {
+            return false;
+        }
+        $ok = ftruncate($fh, $offset) && 0 === fseek($fh, $offset);
+        $written = 0;
+        $expected = strlen($body);
+        while ($ok && $written < $expected) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Incremental writes handle safe short-write recovery without allocating another large buffer.
+            $count = fwrite($fh, substr($body, $written, min(1024 * 1024, $expected - $written)));
+            if (false === $count || 0 === $count) {
+                $ok = false;
+                break;
+            }
+            $written += $count;
+        }
+        if ($ok) {
+            $ok = fflush($fh);
+        }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream flush/close is required to commit resumable binary archive data.
+        $closed = fclose($fh);
+        return $ok && $closed && $written === $expected;
+    }
+
+    /** Save smaller transfer size and retry status without losing or rewinding a verified offset. */
+    private static function retry_pull_chunk($id, array $state, $lock, $reason, $tls_handshake = false) {
+        // TLS handshake failures happen BEFORE byte transfer; shrinking the
+        // chunk cannot fix them. Keep the last safe size and verified offset.
+        if (!$tls_handshake) {
+            $state['chunk_size'] = max(self::MIN_CHUNK_SIZE, (int) floor(((int) $state['chunk_size']) / 2));
+        }
+        $state['transient_failures'] = min(12, max(0, (int) ($state['transient_failures'] ?? 0)) + 1);
+        if ($tls_handshake && $state['transient_failures'] >= 5) {
+            // A persistent TLS alert needs server-side SSL/WAF/proxy attention.
+            // Never spin forever, discard downloaded chunks or disable SSL.
+            $state['retrying'] = false;
+            $state['retry_after'] = 0;
+            $state['updated'] = time();
+            self::write_state($id, $state);
+            throw new RuntimeException(__('TLS handshake failed repeatedly. Downloaded progress is saved. Check source server SSL/TLS, firewall or proxy configuration, then use Resume Direct Migration.', 'uwh-site-migrator'));
+        }
+        $state['successful_chunks'] = 0;
+        // Discard stale throughput after a network failure or 10s proxy cutoff.
+        $state['transfer_rate_bps'] = 0;
+        $state['retrying'] = true;
+        $state['retry_after'] = min(12, (int) pow(2, min(4, (int) $state['transient_failures'] - 1)));
+        $state['updated'] = time();
+        self::write_state($id, $state);
+        @flock($lock, LOCK_UN);
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- The streaming transfer lock requires a native file handle.
+        fclose($lock);
+        // A recoverable source timeout is not a failed migration: leave original bytes intact.
+        wp_send_json_success(self::public_pull_state($state));
     }
 
     public static function ajax_pull_status() {
@@ -663,39 +848,63 @@ final class UWHSM_Site_Transfer {
             if (!$state) {
                 throw new RuntimeException(__('Direct migration session disappeared.', 'uwh-site-migrator'));
             }
+            // Browser/proxy timeouts can occur before WordPress receives an error.
+            // A recovery hint shrinks future requests while retaining the committed offset.
+            if ('1' === UWHSM_Compat::post_value('reduce_chunk')) {
+                $state['chunk_size'] = max(self::MIN_CHUNK_SIZE, (int) floor(((int) $state['chunk_size']) / 2));
+                $state['successful_chunks'] = 0;
+                $state['transfer_rate_bps'] = 0;
+                self::write_state($id, $state);
+            }
             $offset = (int) $state['received'];
+            // Resumed sessions from earlier releases may have no adaptive state.
+            $source_limit = max(self::MIN_CHUNK_SIZE, min(self::SMART_MAX_CHUNK, (int) ($state['source_chunk_limit'] ?? self::CHUNK_SIZE)));
+            $state['chunk_size'] = max(self::MIN_CHUNK_SIZE, min($source_limit, (int) ($state['chunk_size'] ?? self::START_CHUNK_SIZE)));
             $length = min((int) $state['chunk_size'], (int) $state['size'] - $offset);
             $key = self::reveal_secret($state['protected_key']);
             $url = add_query_arg(array('offset' => $offset, 'length' => $length), self::build_source_endpoint($state['source_url'], 'package'));
+            $request_started = microtime(true);
             $response = wp_safe_remote_get($url, array(
-                'timeout' => 40, 'redirection' => 0, 'reject_unsafe_urls' => true,
+                'timeout' => self::SOURCE_TIMEOUT, 'redirection' => 0, 'reject_unsafe_urls' => true,
+                'sslverify' => true,
                 'headers' => array('X-SVM-Migration-Key' => $key, 'Accept' => 'application/octet-stream'),
             ));
             if (is_wp_error($response)) {
+                if (self::transient_source_error($response)) {
+                    self::retry_pull_chunk($id, $state, $lock, $response->get_error_message(), self::transient_tls_alert($response));
+                }
                 throw new RuntimeException(__('Source transfer failed: ', 'uwh-site-migrator') . $response->get_error_message());
             }
+            $request_seconds = max(0.05, microtime(true) - $request_started);
             $code = (int) wp_remote_retrieve_response_code($response);
             $body = (string) wp_remote_retrieve_body($response);
+            if (in_array($code, array(408, 429, 500, 502, 503, 504, 524), true)) {
+                self::retry_pull_chunk($id, $state, $lock, 'HTTP ' . $code);
+            }
             if (206 !== $code && 200 !== $code) {
                 throw new RuntimeException(__('Source transfer returned HTTP ', 'uwh-site-migrator') . $code . '.');
             }
+            if (!self::valid_source_range($response, $offset, $length, (int) $state['size'])) {
+                self::retry_pull_chunk($id, $state, $lock, 'Invalid source byte range');
+            }
             if (strlen($body) !== $length) {
-                throw new RuntimeException(__('Source chunk length mismatch. The transfer can be resumed safely.', 'uwh-site-migrator'));
+                self::retry_pull_chunk($id, $state, $lock, 'Incomplete chunk');
             }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-            $fh = @fopen($state['archive'], 'c+b');
-            if (!$fh) {
-                throw new RuntimeException(__('Could not write the incoming migration package.', 'uwh-site-migrator'));
-            }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Native streaming is required to write large backup archives/chunks without loading them fully into memory.
-            $ok = ftruncate($fh, $offset) && 0 === fseek($fh, $offset) && strlen($body) === fwrite($fh, $body);
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-            fclose($fh);
-            if (!$ok) {
-                throw new RuntimeException(__('Could not commit the incoming migration chunk.', 'uwh-site-migrator'));
+            if (!self::commit_chunk($state['archive'], $offset, $body)) {
+                throw new RuntimeException(__('Could not commit the incoming migration chunk. Check available disk space and filesystem permissions.', 'uwh-site-migrator'));
             }
             $state['received'] = $offset + $length;
             $state['updated'] = time();
+            $state['retrying'] = false;
+            $state['retry_after'] = 0;
+            $state['transient_failures'] = 0;
+            $state['successful_chunks'] = (int) ($state['successful_chunks'] ?? 0) + 1;
+            $adaptive = self::adaptive_chunk_after_success(
+                (int) $state['chunk_size'], $length, $request_seconds, (int) ($state['transfer_rate_bps'] ?? 0), $source_limit
+            );
+            $state['chunk_size'] = $adaptive['chunk_size'];
+            $state['transfer_rate_bps'] = $adaptive['transfer_rate_bps'];
+            $state['last_chunk_seconds'] = round($request_seconds, 3);
             if ((int) $state['received'] >= (int) $state['size']) {
                 $state['status'] = 'downloaded';
                 UWHSM_Logger::log_once('direct-pull-complete-' . $id, 'migration', 'success', __('Direct Migration package download completed.', 'uwh-site-migrator'), array('pull_id' => $id, 'backup' => $state['backup_name'], 'source_domain' => $state['source_domain'], 'size' => (int) $state['size']), 7*DAY_IN_SECONDS);

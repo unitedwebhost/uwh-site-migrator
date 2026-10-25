@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: UWH Site Migrator 2.4.12\n"
+"Project-Id-Version: UWH Site Migrator 2.4.13\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/uwh-site-migrator/\n"
 "POT-Creation-Date: 2026-10-02 00:00+0000\n"
 "MIME-Version: 1.0\n"
@@ -3365,4 +3365,8 @@ msgstr ""
 
 #: assets/admin.js
 msgid "Please choose a UWH Site Migrator website backup file (.uwh)."
+msgstr ""
+
+#: includes/class-uwhsm-engine.php:3561
+msgid "Skipped optional .htaccess.bk backup copy; the active server configuration is preserved."
 msgstr ""

@@ -1386,6 +1386,12 @@ final class UWHSM_Engine {
     private function is_ephemeral_file($relative) {
         $relative = wp_normalize_path((string) $relative);
         $name = basename($relative);
+        // Apply the same guard to file inventories captured by an older
+        // incomplete backup job before this release was installed.
+        if (UWHSM_Paths::is_suspicious_sc_loader_path($relative)
+            || UWHSM_Paths::is_optional_server_config_backup($relative)) {
+            return true;
+        }
         if (preg_match('/^\.wp-object-cache-[a-z0-9_-]+\.dat$/i', $name)) {
             return true;
         }
@@ -1705,7 +1711,14 @@ final class UWHSM_Engine {
                 if (!isset($s['warnings'])) {
                     $s['warnings'] = array();
                 }
-                $s['warnings'][] = __('Skipped temporary runtime file: ', 'uwh-site-migrator') . $f['rel'];
+                if (UWHSM_Paths::is_suspicious_sc_loader_path($f['rel'])) {
+                    $s['warnings'][] = __('Excluded suspicious hidden WordPress content (possible malware): ', 'uwh-site-migrator') . $f['rel'];
+                    UWHSM_Logger::log_once('backup-sc-indicator-' . md5($f['rel']), 'backup', 'warning',
+                        __('Backup excluded a hidden WordPress file matching an SC malware indicator. Scan and clean the source website.', 'uwh-site-migrator'),
+                        array('message' => $f['rel']), 7 * DAY_IN_SECONDS);
+                } else {
+                    $s['warnings'][] = __('Skipped temporary runtime file: ', 'uwh-site-migrator') . $f['rel'];
+                }
                 $handled++;
                 $s['file_bytes_done'] += (int) $f['size'];
                 $s['done_units']++;
@@ -2451,9 +2464,15 @@ final class UWHSM_Engine {
             $this->verify_archive_site_identity($zip, $manifest);
             $this->verify_archived_branding_entries($manifest, $integrity);
             $this->verify_archive_builder_templates($zip, $manifest);
+            // All four source snapshots were compared with the actual archived
+            // database rows BEFORE any destination file/table is replaced.
+            // The per-entry SHA-256 checks still run during restore extraction.
+            // Remember this durable result so the single 99% finalize request
+            // need not scan the same possibly large options export twice again.
+            $source_snapshots_prevalidated = true;
             $destination_drive_settings = get_option('uwhsm_google_drive_settings_v1', '');
             $destination_drive_settings = is_string($destination_drive_settings) ? $destination_drive_settings : '';
-            return array('type' => 'restore', 'restore_id' => $id, 'token_hash' => hash('sha256', $token), 'archive' => $archive, 'source_mode' => $source_mode, 'archive_name' => basename((string) $archive_name), 'archive_cleanup' => in_array($source_mode, array('uploaded', 'direct'), true), 'manifest' => $manifest, 'integrity' => $integrity, 'source_active_plugins' => $retained_active_plugins, 'skipped_missing_plugins' => array_values(array_keys($allowed_skips)), 'entries' => $entries, 'entry_index' => 0, 'phase' => 'extract', 'new_site_url' => site_url(), 'new_home_url' => home_url(), 'new_abspath' => untrailingslashit(UWHSM_Paths::wordpress_root()), 'new_content_dir' => untrailingslashit(UWHSM_Paths::content_root()), 'new_plugins_dir' => untrailingslashit(UWHSM_Paths::plugin_root()), 'new_uploads_dir' => untrailingslashit(UWHSM_Paths::upload_root()), 'new_content_url' => content_url(), 'new_plugins_url' => plugins_url(), 'new_uploads_url' => UWHSM_Paths::upload_url(), 'new_prefix' => $GLOBALS['wpdb']->prefix, 'destination_upload_path' => (string) get_option('upload_path', ''), 'destination_upload_url_path' => (string) get_option('upload_url_path', ''), 'source_first_restore' => true, 'options_atomic_swap' => true, 'auth_tables_atomic_swap' => true, 'incremental_template_verify' => true, 'verify_restored_files' => true, 'verify_files_index' => 0, 'verify_kind_index' => 0, 'verify_byte_offset' => 0, 'tables' => array(), 'table_index' => 0, 'row_offset' => 0, 'current_table' => '', 'destination_drive_settings' => $destination_drive_settings, 'created' => time());
+            return array('type' => 'restore', 'restore_id' => $id, 'token_hash' => hash('sha256', $token), 'archive' => $archive, 'source_mode' => $source_mode, 'archive_name' => basename((string) $archive_name), 'archive_cleanup' => in_array($source_mode, array('uploaded', 'direct'), true), 'manifest' => $manifest, 'integrity' => $integrity, 'source_active_plugins' => $retained_active_plugins, 'skipped_missing_plugins' => array_values(array_keys($allowed_skips)), 'entries' => $entries, 'entry_index' => 0, 'phase' => 'extract', 'new_site_url' => site_url(), 'new_home_url' => home_url(), 'new_abspath' => untrailingslashit(UWHSM_Paths::wordpress_root()), 'new_content_dir' => untrailingslashit(UWHSM_Paths::content_root()), 'new_plugins_dir' => untrailingslashit(UWHSM_Paths::plugin_root()), 'new_uploads_dir' => untrailingslashit(UWHSM_Paths::upload_root()), 'new_content_url' => content_url(), 'new_plugins_url' => plugins_url(), 'new_uploads_url' => UWHSM_Paths::upload_url(), 'new_prefix' => $GLOBALS['wpdb']->prefix, 'destination_upload_path' => (string) get_option('upload_path', ''), 'destination_upload_url_path' => (string) get_option('upload_url_path', ''), 'source_first_restore' => true, 'source_snapshots_prevalidated' => $source_snapshots_prevalidated, 'options_atomic_swap' => true, 'auth_tables_atomic_swap' => true, 'incremental_template_verify' => true, 'verify_restored_files' => true, 'verify_files_index' => 0, 'verify_kind_index' => 0, 'verify_byte_offset' => 0, 'tables' => array(), 'table_index' => 0, 'row_offset' => 0, 'current_table' => '', 'destination_drive_settings' => $destination_drive_settings, 'created' => time());
         } finally {
             $zip->close();
         }
@@ -2601,6 +2620,12 @@ final class UWHSM_Engine {
             }
             $this->finish_restore_guard($s);
             $completed_label = !$archive_saved ? __('Migration complete; destination backup retention needs attention (see Activity Logs).', 'uwh-site-migrator') : __('Migration complete', 'uwh-site-migrator');
+            if (!empty($s['suspicious_files_excluded'])) {
+                $completed_label .= ' ' . __('Potentially unsafe hidden files were excluded; review Activity Logs and scan both sites.', 'uwh-site-migrator');
+                UWHSM_Logger::log_once('restore-sc-final-' . $id, 'restore', 'warning',
+                    __('Migration finished with suspicious SC-style hidden WordPress content excluded. Inspect the source and destination for malware persistence before treating the site as clean.', 'uwh-site-migrator'),
+                    array('restore_id' => $id), 7 * DAY_IN_SECONDS);
+            }
             wp_send_json_success(array('restore_id' => $id, 'token' => $token, 'done' => true, 'progress' => 100, 'label' => !empty($s['is_rollback']) ? __('Rollback complete', 'uwh-site-migrator') : $completed_label, 'archive_retained' => $archive_saved, 'automatic_rollback' => !empty($s['is_rollback']), 'rolled_back' => !empty($s['is_rollback']), 'original_error' => (string) ($s['original_error'] ?? '')));
         }
         // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
@@ -2750,12 +2775,12 @@ final class UWHSM_Engine {
             $label = __('Verifying every restored website file', 'uwh-site-migrator');
         } elseif ('verify' === $s['phase']) {
             $progress = 98;
-            $verification_step = min(3, max(1, (int) ($s['verify_kind_index'] ?? 0) + 1));
+            $verification_step = min(2, max(1, (int) ($s['verify_kind_index'] ?? 0) + 1));
             $label = sprintf(
-                /* translators: %1$d: current verification stage, %2$d: total verification stages. */
-                __('Verifying restored slugs and Elementor templates (%1$d/%2$d)', 'uwh-site-migrator'),
+                /* translators: %1$d: current slug verification stage, %2$d: total slug verification stages. */
+                __('Verifying restored post and taxonomy slugs (%1$d/%2$d)', 'uwh-site-migrator'),
                 $verification_step,
-                3
+                2
             );
         } else {
             $progress = 99;
@@ -2780,6 +2805,14 @@ final class UWHSM_Engine {
             $this->finish_restore_guard($s);
             if (!$keep_done) {
                 $label = __('Migration complete; destination backup retention needs attention (see Activity Logs).', 'uwh-site-migrator');
+            }
+            if (!empty($s['suspicious_files_excluded'])) {
+                $label .= ' ' . __('Potentially unsafe hidden files were excluded; review Activity Logs and scan both sites.', 'uwh-site-migrator');
+                // The source options table may have replaced Activity Logs during
+                // import. Log again after the database has been published.
+                UWHSM_Logger::log_once('restore-sc-final-' . $id, 'restore', 'warning',
+                    __('Migration finished with suspicious SC-style hidden WordPress content excluded. Inspect the source and destination for malware persistence before treating the site as clean.', 'uwh-site-migrator'),
+                    array('restore_id' => $id), 7 * DAY_IN_SECONDS);
             }
         }
         wp_send_json_success(array('restore_id' => $id, 'token' => $token, 'done' => $done, 'progress' => $progress, 'phase' => (string) $s['phase'], 'file_index' => (int) ($s['copy_index'] ?? 0), 'file_progress' => !empty($s['file_partial']) && !empty($s['integrity']['files'][$s['file_partial']['entry']]['size']) ? (int) floor(100 * (int) $s['file_partial']['offset'] / (int) $s['integrity']['files'][$s['file_partial']['entry']]['size']) : 0, 'label' => $label, 'archive_retained' => $done ? $keep_done : null, 'automatic_rollback' => !empty($s['is_rollback']), 'rolled_back' => $done && !empty($s['is_rollback']), 'original_error' => (string) ($s['original_error'] ?? '')));
@@ -3017,6 +3050,16 @@ final class UWHSM_Engine {
                 $rel = substr($entry, 5);
                 $norm = wp_normalize_path($rel);
                 if ('wp-config.php' === $norm || 0 === strpos($norm, trailingslashit($own)) || $this->skip_restore_file($norm)) {
+                    $this->log_optional_restore_skip($norm, $s);
+                    if (UWHSM_Paths::is_suspicious_sc_loader_path($norm)) {
+                        // A known malware-indicator path must not be force-written
+                        // simply to achieve byte-for-byte backup parity. Never
+                        // delete the original, and make the exclusion auditable.
+                        $s['suspicious_files_excluded'] = (int) ($s['suspicious_files_excluded'] ?? 0) + 1;
+                        UWHSM_Logger::log_once('restore-sc-indicator-' . (string) ($s['restore_id'] ?? ''), 'restore', 'warning',
+                            __('A hidden WordPress content file matching an SC malware indicator was excluded from restore. The website must be checked for other persistence paths.', 'uwh-site-migrator'),
+                            array('restore_id' => (string) ($s['restore_id'] ?? ''), 'message' => $norm), 7 * DAY_IN_SECONDS);
+                    }
                     $s['copy_index'] = $i + 1;
                     continue;
                 }
@@ -3216,58 +3259,111 @@ final class UWHSM_Engine {
         $s['rollback_extra_files_removed'] = $removed;
     }
 
+    /**
+     * Write one verified file directly beside its destination, then atomically
+     * rename it. This is NOT the removed whole-site staging phase: the local
+     * temporary file ensures a failed/partial write never corrupts the target.
+     */
     private function recover_staged_file($entry, $target, array &$s, $recovery = true, $archive = null) {
         $check = $s['integrity']['files'][$entry] ?? null;
-        if (!$this->safe_entry($entry) || !is_array($check)) {
+        if (!$this->safe_entry($entry) || !is_array($check)
+            || !isset($check['size'], $check['sha256'])
+            || !preg_match('/^[a-f0-9]{64}$/D', (string) $check['sha256'])) {
             throw new RuntimeException(esc_html__('Cannot recover an unverified archive entry.', 'uwh-site-migrator'));
         }
         if (!is_file($s['archive'])) {
             throw new RuntimeException(esc_html__('The original backup archive is missing. Keep this restore paused and recover it from hosting backup; do not delete the job files.', 'uwh-site-migrator'));
         }
         $this->assert_no_symlink($target);
-        wp_mkdir_p(dirname($target));
+        $parent = dirname($target);
+        if (!is_dir($parent) && !wp_mkdir_p($parent)) {
+            throw new RuntimeException(esc_html__('Could not create destination directory for: ', 'uwh-site-migrator') . esc_html($entry));
+        }
+        $this->assert_no_symlink($target);
+        // Another verified batch may already have committed this file before
+        // its response was lost. This also avoids unnecessary replacement on
+        // read-only/managed hosting when the destination is already identical.
+        $expected_size = (int) $check['size'];
+        $expected_hash = (string) $check['sha256'];
+        if (is_file($target) && (int) filesize($target) === $expected_size
+            && hash_equals($expected_hash, (string) hash_file('sha256', $target))) {
+            if ($recovery) {
+                $s['recovered_files'] = (int) ($s['recovered_files'] ?? 0) + 1;
+            }
+            return;
+        }
         $owns_zip = null === $archive;
-        $zip = $archive?:$this->open_zip($s['archive']);
+        $zip = $owns_zip ? $this->open_zip($s['archive']) : $archive;
         $in = false;
         $out = false;
-        $tmp = $target . '.svm-recover-' . bin2hex(random_bytes(6));
+        $tmp = '';
         try {
             $in = $zip->getStream($entry);
-            if (!$in) {
-                throw new RuntimeException(esc_html__('The backup does not contain the missing staged file: ', 'uwh-site-migrator') . esc_html($entry));
+            if (!is_resource($in)) {
+                throw new RuntimeException(esc_html__('The backup does not contain the file: ', 'uwh-site-migrator') . esc_html($entry));
             }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-            $out = fopen($tmp, 'wb');
-            if (!$out) {
-                throw new RuntimeException(esc_html__('Could not recreate staged file. Check storage permissions and free space.', 'uwh-site-migrator'));
+            // Create in the SAME directory for atomic rename and a single
+            // filesystem. Exclusive-create prevents clobbering planted links;
+            // retry a few fresh names for collisions or short-lived I/O errors.
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                $candidate = $target . '.uwhsm-restore-' . bin2hex(random_bytes(8));
+                $this->assert_no_symlink($candidate);
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Exclusive same-directory binary temporary stream is essential for atomic SHA-256 verified restore.
+                $out = @fopen($candidate, 'x+b');
+                if (is_resource($out)) {
+                    $tmp = $candidate;
+                    break;
+                }
+                if ($attempt < 2) {
+                    usleep(75000);
+                }
             }
+            if (!is_resource($out)) {
+                // This generally requires an administrator/hosting fix, not
+                // permission changes or an unsafe direct overwrite from PHP.
+                $free = @disk_free_space($parent);
+                $space = false === $free ? '' : sprintf(
+                    /* translators: %s: remaining free disk space. */
+                    __(' Available space: %s.', 'uwh-site-migrator'),
+                    size_format($free, 2)
+                );
+                throw new RuntimeException(
+                    esc_html__('Could not write destination file: ', 'uwh-site-migrator') . esc_html($entry) . '. ' .
+                    esc_html__('Check the destination folder owner/write permissions, disk quota and free space; then Resume restore.', 'uwh-site-migrator') .
+                    esc_html($space)
+                );
+            }
+            // Keep memory bounded. A copy failure or a short/failed flush
+            // must never publish a truncated file as a valid restored file.
             $bytes = stream_copy_to_stream($in, $out);
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-            fclose($out);
+            $flushed = is_int($bytes) && fflush($out);
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close/flush the atomic temporary binary restore stream before checksum and rename.
+            $closed = fclose($out);
             $out = false;
-            if ($bytes !== (int) $check['size'] || !hash_equals($check['sha256'], hash_file('sha256', $tmp))) {
-                throw new RuntimeException(esc_html__('Recovered file checksum failed: ', 'uwh-site-migrator') . esc_html($entry));
+            if (!$flushed || !$closed || $bytes !== $expected_size
+                || !is_file($tmp) || !hash_equals($expected_hash, (string) hash_file('sha256', $tmp))) {
+                throw new RuntimeException(esc_html__('Restored file checksum or disk write failed: ', 'uwh-site-migrator') . esc_html($entry));
             }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Atomic local rename is required when committing migration state or moving an existing backup directory safely.
-            if (!rename($tmp, $target)) {
-                throw new RuntimeException(esc_html__('Could not commit recovered staged file: ', 'uwh-site-migrator') . esc_html($entry));
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Atomic same-directory rename is required to prevent exposing incomplete files.
+            if (!@rename($tmp, $target)) {
+                throw new RuntimeException(esc_html__('Could not replace destination file (check file ownership and permissions): ', 'uwh-site-migrator') . esc_html($entry));
             }
             if ($recovery) {
-                $s['recovered_files'] = (int) ($s['recovered_files'] ?? 0)+1;
+                $s['recovered_files'] = (int) ($s['recovered_files'] ?? 0) + 1;
             }
         } finally {
             if (is_resource($in)) {
-                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close ZIP entry stream at the end of this bounded restore batch.
                 fclose($in);
             }
             if (is_resource($out)) {
-                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release an incomplete local restore stream.
                 fclose($out);
             }
             if ($owns_zip) {
                 $zip->close();
             }
-            if (is_file($tmp)) {
+            if ($tmp !== '' && is_file($tmp)) {
                 wp_delete_file($tmp);
             }
         }
@@ -3452,12 +3548,30 @@ final class UWHSM_Engine {
         wp_send_json_success($result);
     }
 
+    /** Report intentionally skipped inactive configuration backup copies. */
+    private function log_optional_restore_skip($relative, array $state) {
+        if (!UWHSM_Paths::is_optional_server_config_backup($relative)) {
+            return;
+        }
+        $restore_id = (string) ($state['restore_id'] ?? '');
+        UWHSM_Logger::log_once(
+            'restore-optional-htaccess-' . $restore_id . '-' . md5($relative),
+            'restore',
+            'info',
+            __('Skipped optional .htaccess.bk backup copy; the active server configuration is preserved.', 'uwh-site-migrator'),
+            array('restore_id' => $restore_id, 'message' => $relative),
+            7 * DAY_IN_SECONDS
+        );
+    }
+
     private function skip_restore_file($rel) {
         $rel = ltrim(wp_normalize_path((string) $rel), '/');
         // Another backup plugin owns these repositories. A Site Migrator
         // restore/rollback must not replace, corrupt or prune its live archives,
         // including files contained in backups created by older UWHSM versions.
-        if (UWHSM_Paths::is_external_backup_archive_path($rel)) {
+        if (UWHSM_Paths::is_external_backup_archive_path($rel)
+            || UWHSM_Paths::is_suspicious_sc_loader_path($rel)
+            || UWHSM_Paths::is_optional_server_config_backup($rel)) {
             return true;
         }
         if (in_array($rel, array('.htaccess', '.user.ini', 'php.ini', 'wp-config.php', 'wp-content/object-cache.php', 'wp-content/advanced-cache.php', 'wp-content/db.php'), true)) {
@@ -4331,6 +4445,7 @@ final class UWHSM_Engine {
             $rel = substr($entry, 5);
             $norm = wp_normalize_path($rel);
             if ('wp-config.php' === $norm || 0 === strpos($norm, trailingslashit($own)) || $this->skip_restore_file($norm)) {
+                $this->log_optional_restore_skip($norm, $state);
                 $state['verify_files_index'] = $i + 1;
                 continue;
             }
@@ -4357,13 +4472,22 @@ final class UWHSM_Engine {
     }
 
     /**
-     * Read at most a few seconds of integrity data per AJAX request. The state
-     * holds a byte offset into already checksum-verified extracted rows, so a
-     * dropped HTTP response can safely repeat the same checks without losing
-     * the migration or forcing a long 99% request.
+     * Read bounded slug rows from the checksum-verified archive, resuming by
+     * byte offset when a request is interrupted. v2.4.5 restored Elementor
+     * postmeta during the normal database import and did not re-import or
+     * byte-compare each builder setting at 99%.
+     *
+     * The extra postmeta reconciliation pass added later could rewrite valid
+     * Elementor JSON/theme-builder conditions (and reject charset-normalized
+     * values) after a successful import. Keep import receipts, table row-count
+     * validation, source template post-type presence checks, and SHA-256 file
+     * checks, but do not replay the template postmeta a second time.
+     *
+     * Previously interrupted jobs with verify_kind_index=2 advance to their
+     * next phase on Resume instead of entering the removed postmeta pass.
      */
     private function run_restore_integrity_batch(array &$state) {
-        $kinds = array('posts', 'terms', 'postmeta');
+        $kinds = array('posts', 'terms');
         $index = (int) ($state['verify_kind_index'] ?? 0);
         if ($index >= count($kinds)) {
             $state['builder_and_slugs_verified'] = true;
@@ -4544,11 +4668,16 @@ final class UWHSM_Engine {
         if (!is_array($expected)) {
             return;
         }
-        $zip = $this->open_zip($state['archive']);
-        try {
-            $this->verify_archive_site_identity($zip, (array) $state['manifest']);
-        } finally {
-            $zip->close();
+        // Fresh jobs already validated the identity snapshot against the
+        // archive before beginning a destructive restore. Old in-progress
+        // jobs have no receipt and still use the original strict check.
+        if (empty($state['source_snapshots_prevalidated'])) {
+            $zip = $this->open_zip($state['archive']);
+            try {
+                $this->verify_archive_site_identity($zip, (array) $state['manifest']);
+            } finally {
+                $zip->close();
+            }
         }
         $options = (string) $state['new_prefix'] . 'options';
         $posts = (string) $state['new_prefix'] . 'posts';
@@ -5071,11 +5200,16 @@ final class UWHSM_Engine {
         if (!array_key_exists('active_theme_stylesheet', $manifest) || !array_key_exists('active_theme_template', $manifest)) {
             return; // Legacy archives: keep earlier behavior without guessing.
         }
-        $zip = $this->open_zip($state['archive']);
-        try {
-            $this->verify_archive_active_theme_settings($zip, $manifest);
-        } finally {
-            $zip->close();
+        // Source theme options were checked against backup rows up front.
+        // Rereading a large options export again at 99% can time out on shared
+        // hosts. Legacy paused jobs are not given that assurance implicitly.
+        if (empty($state['source_snapshots_prevalidated'])) {
+            $zip = $this->open_zip($state['archive']);
+            try {
+                $this->verify_archive_active_theme_settings($zip, $manifest);
+            } finally {
+                $zip->close();
+            }
         }
         $expected = array(
             'stylesheet' => (string) $manifest['active_theme_stylesheet'],
