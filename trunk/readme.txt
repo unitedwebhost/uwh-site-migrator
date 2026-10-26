@@ -3,7 +3,7 @@ Contributors: unitedwebhost
 Tags: backup, migration, restore, google-drive, site-migration
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 2.4.13
+Stable tag: 2.4.14
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -129,6 +129,10 @@ For safety, uninstall does **not** delete Site Migrator settings/options, encryp
 6. Activity log view accessible from Troubleshooting.
 
 == Changelog ==
+
+= 2.4.14 =
+* Allow final verification to finish if the specific host-managed `.private/.htaccess` was removed or rewritten after restore; record a security warning requiring destination access-control review.
+* Keep all other file-integrity checks, archive checks and restore features unchanged.
 
 = 2.4.13 =
 * Treat `.htaccess.bk` as an optional inactive server configuration backup copy during backup, restore and final file verification. Existing archives and paused verification jobs can complete when this nonessential copy is missing or altered.

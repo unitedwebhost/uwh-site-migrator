@@ -2570,6 +2570,8 @@ final class UWHSM_Engine {
             $progress = 60 + 38 * min(1, (int) ($state['table_index'] ?? 0) / max(1, count((array) ($state['tables'] ?? array()))));
         } elseif ('verify' === $phase || 'verify_files' === $phase) {
             $progress = 98;
+        } elseif ('audit_extras' === $phase) {
+            $progress = 99;
         } elseif (in_array($phase, array('finalize', 'failed', 'cancelled'), true)) {
             $progress = 99;
         } elseif ('done' === $phase) {
@@ -2586,7 +2588,7 @@ final class UWHSM_Engine {
             'done' => 'done' === $phase,
             'phase' => $phase,
             'progress' => $progress,
-            'label' => ('stage_files' === $phase) ? __('Restarting direct website file restore', 'uwh-site-migrator') : (('files' === $phase) ? __('Restoring website files', 'uwh-site-migrator') : (('verify_files' === $phase) ? __('Verifying restored website files', 'uwh-site-migrator') : __('Checking saved restore progress', 'uwh-site-migrator'))),
+            'label' => ('stage_files' === $phase) ? __('Restarting direct website file restore', 'uwh-site-migrator') : (('files' === $phase) ? __('Restoring website files', 'uwh-site-migrator') : (('verify_files' === $phase) ? __('Verifying and repairing website files', 'uwh-site-migrator') : (('audit_extras' === $phase) ? __('Checking destination-only website files', 'uwh-site-migrator') : __('Checking saved restore progress', 'uwh-site-migrator')))),
             'file_progress' => $file_percent,
             // The signed restore token is required before exposing file names.
             'current_file' => $current,
@@ -2596,6 +2598,7 @@ final class UWHSM_Engine {
             'automatic_rollback' => !empty($state['is_rollback']),
             'rolled_back' => 'done' === $phase && !empty($state['is_rollback']),
             'recovery_available' => !isset($state['recovery_available']) || false !== $state['recovery_available'],
+            'private_access_rule_warning' => (string) ($state['private_access_rule_warning'] ?? ''),
         ));
     }
 
@@ -2626,7 +2629,10 @@ final class UWHSM_Engine {
                     __('Migration finished with suspicious SC-style hidden WordPress content excluded. Inspect the source and destination for malware persistence before treating the site as clean.', 'uwh-site-migrator'),
                     array('restore_id' => $id), 7 * DAY_IN_SECONDS);
             }
-            wp_send_json_success(array('restore_id' => $id, 'token' => $token, 'done' => true, 'progress' => 100, 'label' => !empty($s['is_rollback']) ? __('Rollback complete', 'uwh-site-migrator') : $completed_label, 'archive_retained' => $archive_saved, 'automatic_rollback' => !empty($s['is_rollback']), 'rolled_back' => !empty($s['is_rollback']), 'original_error' => (string) ($s['original_error'] ?? '')));
+            if (!empty($s['private_access_rule_warning'])) {
+                $completed_label .= ' ' . __('Private-directory access rule needs verification; see Activity Logs.', 'uwh-site-migrator');
+            }
+            wp_send_json_success(array('restore_id' => $id, 'token' => $token, 'done' => true, 'progress' => 100, 'label' => !empty($s['is_rollback']) ? __('Rollback complete', 'uwh-site-migrator') : $completed_label, 'archive_retained' => $archive_saved, 'automatic_rollback' => !empty($s['is_rollback']), 'rolled_back' => !empty($s['is_rollback']), 'original_error' => (string) ($s['original_error'] ?? ''), 'private_access_rule_warning' => (string) ($s['private_access_rule_warning'] ?? '')));
         }
         // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
         $lock = fopen($this->lock_path($id), 'c');
@@ -2662,7 +2668,7 @@ final class UWHSM_Engine {
                 unset($s['strict_file_staging']);
                 $this->write_state($id, $s);
             }
-            if (in_array($s['phase'], array('files', 'database', 'verify', 'verify_files', 'finalize'), true)) {
+            if (in_array($s['phase'], array('files', 'database', 'verify', 'verify_files', 'audit_extras', 'finalize'), true)) {
                 $this->enable_restore_guard($s);
             }
             if ('extract' === $s['phase']) {
@@ -2671,6 +2677,8 @@ final class UWHSM_Engine {
                 $this->restore_files($s);
             } elseif ('verify_files' === $s['phase']) {
                 $this->verify_restored_files_batch($s);
+            } elseif ('audit_extras' === $s['phase']) {
+                $this->audit_destination_extras_batch($s);
             } elseif ('database' === $s['phase']) {
                 $this->restore_database($s);
             } elseif ('verify' === $s['phase']) {
@@ -2683,6 +2691,12 @@ final class UWHSM_Engine {
                 if (self::restore_needs_incremental_verify($s)) {
                     $s['phase'] = 'verify';
                     $this->run_restore_integrity_batch($s);
+                } elseif (!empty($s['verify_restored_files']) && !empty($s['files_verified'])
+                    && empty($s['extra_audit_complete']) && empty($s['is_rollback'])) {
+                    // Existing 2.4.14 jobs at finalization gain the read-only
+                    // destination-only file audit when resumed after updating.
+                    $s['phase'] = 'audit_extras';
+                    $this->audit_destination_extras_batch($s);
                 } else {
                     $this->restore_finalize($s);
                 }
@@ -2691,7 +2705,7 @@ final class UWHSM_Engine {
             } else {
                 throw new RuntimeException(__('Invalid restore state.', 'uwh-site-migrator'));
             }
-            if (in_array($s['phase'], array('files', 'database', 'verify', 'verify_files', 'finalize'), true)) {
+            if (in_array($s['phase'], array('files', 'database', 'verify', 'verify_files', 'audit_extras', 'finalize'), true)) {
                 $this->enable_restore_guard($s);
             }
             // The archive occasionally contains legacy malformed serialized
@@ -2772,7 +2786,10 @@ final class UWHSM_Engine {
             $label = !empty($s['is_rollback']) ? __('Rolling back database', 'uwh-site-migrator') : __('Restoring database and updating URLs', 'uwh-site-migrator');
         } elseif ('verify_files' === $s['phase']) {
             $progress = 99;
-            $label = __('Verifying every restored website file', 'uwh-site-migrator');
+            $label = __('Verifying and repairing restored website files', 'uwh-site-migrator');
+        } elseif ('audit_extras' === $s['phase']) {
+            $progress = 99;
+            $label = __('Checking for destination-only website files', 'uwh-site-migrator');
         } elseif ('verify' === $s['phase']) {
             $progress = 98;
             $verification_step = min(2, max(1, (int) ($s['verify_kind_index'] ?? 0) + 1));
@@ -2814,8 +2831,30 @@ final class UWHSM_Engine {
                     __('Migration finished with suspicious SC-style hidden WordPress content excluded. Inspect the source and destination for malware persistence before treating the site as clean.', 'uwh-site-migrator'),
                     array('restore_id' => $id), 7 * DAY_IN_SECONDS);
             }
+            if (!empty($s['private_access_rule_warning'])) {
+                $label .= ' ' . __('Private-directory access rule needs verification; see Activity Logs.', 'uwh-site-migrator');
+            }
+            if (!empty($s['extra_audit_count'])) {
+                $label .= ' ' . sprintf(
+                    /* translators: %d: number of destination-only files. */
+                    _n('%d destination-only file was retained; review Activity Logs.', '%d destination-only files were retained; review Activity Logs.', (int) $s['extra_audit_count'], 'uwh-site-migrator'),
+                    (int) $s['extra_audit_count']
+                );
+                UWHSM_Logger::log_once(
+                    'restore-destination-extras-' . $id, 'restore', 'warning',
+                    __('Destination-only files remain after migration. They were NOT deleted automatically; inspect them before removal.', 'uwh-site-migrator'),
+                    array('restore_id' => $id, 'count' => (int) $s['extra_audit_count'], 'message' => implode(', ', array_slice((array) ($s['extra_audit_examples'] ?? array()), 0, 8))),
+                    7 * DAY_IN_SECONDS
+                );
+            }
+            if (!empty($s['extra_audit_incomplete'])) {
+                $label .= ' ' . __('The optional destination-only file scan was incomplete; review Activity Logs.', 'uwh-site-migrator');
+                UWHSM_Logger::log_once('restore-extras-incomplete-' . $id, 'restore', 'warning',
+                    __('Some destination directories could not be enumerated. Restore integrity was still verified, but the extra-file report is incomplete.', 'uwh-site-migrator'),
+                    array('restore_id' => $id), 7 * DAY_IN_SECONDS);
+            }
         }
-        wp_send_json_success(array('restore_id' => $id, 'token' => $token, 'done' => $done, 'progress' => $progress, 'phase' => (string) $s['phase'], 'file_index' => (int) ($s['copy_index'] ?? 0), 'file_progress' => !empty($s['file_partial']) && !empty($s['integrity']['files'][$s['file_partial']['entry']]['size']) ? (int) floor(100 * (int) $s['file_partial']['offset'] / (int) $s['integrity']['files'][$s['file_partial']['entry']]['size']) : 0, 'label' => $label, 'archive_retained' => $done ? $keep_done : null, 'automatic_rollback' => !empty($s['is_rollback']), 'rolled_back' => $done && !empty($s['is_rollback']), 'original_error' => (string) ($s['original_error'] ?? '')));
+        wp_send_json_success(array('restore_id' => $id, 'token' => $token, 'done' => $done, 'progress' => $progress, 'phase' => (string) $s['phase'], 'file_index' => (int) ($s['copy_index'] ?? 0), 'file_progress' => !empty($s['file_partial']) && !empty($s['integrity']['files'][$s['file_partial']['entry']]['size']) ? (int) floor(100 * (int) $s['file_partial']['offset'] / (int) $s['integrity']['files'][$s['file_partial']['entry']]['size']) : 0, 'label' => $label, 'archive_retained' => $done ? $keep_done : null, 'automatic_rollback' => !empty($s['is_rollback']), 'rolled_back' => $done && !empty($s['is_rollback']), 'original_error' => (string) ($s['original_error'] ?? ''), 'private_access_rule_warning' => (string) ($s['private_access_rule_warning'] ?? '')));
     }
 
     private function finish_restore_guard(array $state) {
@@ -3588,6 +3627,37 @@ final class UWHSM_Engine {
             return true;
         }
         return in_array($rel, array('index.php', 'xmlrpc.php', 'license.txt', 'readme.html'), true);
+    }
+
+    /**
+     * Some managed hosts regenerate or remove the dot-directory access rule
+     * after files have been restored. This exact root-level private-directory
+     * rule is the only non-backup .htaccess allowed to differ during the
+     * final post-restore checksum pass. The original file is still included
+     * in the backup and copied normally during restore.
+     *
+     * Do not generalize this to the root .htaccess, theme/plugin files,
+     * additional protected directories or arbitrary missing files.
+     */
+    private static function is_host_managed_private_access_rule($relative) {
+        return '.private/.htaccess' === strtolower(ltrim(wp_normalize_path((string) $relative), '/'));
+    }
+
+    /** Report a security-relevant, narrowly tolerated post-restore mismatch. */
+    private function note_private_access_rule_mismatch($relative, $target, array &$state) {
+        $missing = !is_file($target);
+        $state['private_access_rule_warning'] = $missing ? 'missing' : 'modified';
+        UWHSM_Logger::log_once(
+            'restore-private-access-rule-' . (string) ($state['restore_id'] ?? ''),
+            'restore',
+            'warning',
+            __('Migration continued despite a missing or modified .private/.htaccess. Review access restrictions on the destination before making the site public; Apache .htaccess rules do not protect Nginx servers.', 'uwh-site-migrator'),
+            array(
+                'restore_id' => (string) ($state['restore_id'] ?? ''),
+                'message' => $relative . ' (' . ($missing ? 'missing' : 'modified') . ')',
+            ),
+            7 * DAY_IN_SECONDS
+        );
     }
 
     private function assert_no_symlink($path) {
@@ -4430,9 +4500,11 @@ final class UWHSM_Engine {
      * state remains backward compatible with the original finalization path.
      */
     /**
-     * Assert physical destination parity with every restorable archived file.
-     * Cursors make the final comparison resumable on shared hosting; a
-     * missing/modified file is a hard failure, never a silent success.
+     * Verify all included restore files against the SOURCE ARCHIVE inventory,
+     * never against the pre-migration destination. On mismatch retry the same
+     * authenticated, SHA-256-checked archive write before reporting failure.
+     * Large files use the existing bounded/resumable writer. A cursor only
+     * advances after a confirmed repair and checksum match.
      */
     private function verify_restored_files_batch(array &$state) {
         $files = (array) ($state['site_files'] ?? array());
@@ -4442,6 +4514,9 @@ final class UWHSM_Engine {
         $own = wp_normalize_path('wp-content/plugins/' . plugin_basename(UWHSM_DIR));
         for ($i = $index; $i < $end; $i++) {
             $entry = (string) $files[$i];
+            if (0 !== strpos($entry, 'site/')) {
+                throw new RuntimeException(esc_html__('Invalid site file inventory path.', 'uwh-site-migrator'));
+            }
             $rel = substr($entry, 5);
             $norm = wp_normalize_path($rel);
             if ('wp-config.php' === $norm || 0 === strpos($norm, trailingslashit($own)) || $this->skip_restore_file($norm)) {
@@ -4451,20 +4526,220 @@ final class UWHSM_Engine {
             }
             $check = (array) ($state['integrity']['files'][$entry] ?? array());
             $target = UWHSM_Paths::restore_target($rel);
-            if (!is_file($target) || !is_readable($target)
-                || (int) filesize($target) !== (int) ($check['size'] ?? -1)
-                || !hash_equals((string) ($check['sha256'] ?? ''), (string) hash_file('sha256', $target))) {
-                throw new RuntimeException(esc_html__('Migration cannot finish: missing or modified website file: ', 'uwh-site-migrator') . esc_html($rel));
+            if (!$this->restored_file_matches_inventory($target, $check)) {
+                if (self::is_host_managed_private_access_rule($norm)) {
+                    $this->note_private_access_rule_mismatch($norm, $target, $state);
+                    $state['verify_files_index'] = $i + 1;
+                    continue;
+                }
+                // Limit the state to the current repair so a large migration
+                // never grows a JSON record for each file it repaired.
+                $repair = (array) ($state['verify_file_repair'] ?? array());
+                if (($repair['entry'] ?? '') !== $entry) {
+                    $state['verify_file_repair'] = array('entry' => $entry);
+                }
+                if ((int) ($check['size'] ?? -1) >= 16 * 1024 * 1024 || !empty($state['file_partial'])) {
+                    $zip = $this->open_zip((string) $state['archive']);
+                    try {
+                        $complete = $this->restore_large_file_chunk($entry, $target, $state, $zip);
+                    } finally {
+                        $zip->close();
+                    }
+                    if (!$complete) {
+                        // Persist the current large-file offset; never start
+                        // verifying the next file until this one is committed.
+                        return;
+                    }
+                } else {
+                    $this->recover_staged_file($entry, $target, $state, true);
+                }
+                clearstatcache(true, $target);
+                if (!$this->restored_file_matches_inventory($target, $check)) {
+                    throw new RuntimeException(esc_html__('Archive repair did not match the original file checksum: ', 'uwh-site-migrator') . esc_html($rel));
+                }
+                $state['verify_files_repaired'] = (int) ($state['verify_files_repaired'] ?? 0) + 1;
+                unset($state['verify_file_repair']);
+                UWHSM_Logger::log_once(
+                    'restore-repaired-file-' . (string) ($state['restore_id'] ?? '') . '-' . md5($entry),
+                    'restore', 'info', __('A missing or modified file was restored again from the verified backup.', 'uwh-site-migrator'),
+                    array('restore_id' => (string) ($state['restore_id'] ?? ''), 'message' => $rel), 7 * DAY_IN_SECONDS
+                );
+            } else {
+                // The HTTP response after an atomic rename may have been lost.
+                // The authoritative destination checksum proves completion.
+                if (($state['verify_file_repair']['entry'] ?? '') === $entry) {
+                    unset($state['verify_file_repair'], $state['file_partial']);
+                }
             }
             $state['verify_files_index'] = $i + 1;
-            if (microtime(true) - $started >= 2.0) {
+            if (microtime(true) - $started >= 1.8) {
                 break;
             }
         }
         if ((int) $state['verify_files_index'] >= count($files)) {
             $state['files_verified'] = true;
-            $state['phase'] = 'finalize';
+            $state['phase'] = !empty($state['is_rollback']) ? 'finalize' : 'audit_extras';
         }
+    }
+
+    /** A complete SHA-256 match, not just an existing destination pathname. */
+    private function restored_file_matches_inventory($target, array $check) {
+        if (!isset($check['size'], $check['sha256']) || !is_numeric($check['size'])
+            || !is_string($check['sha256']) || !preg_match('/^[a-f0-9]{64}$/D', $check['sha256'])) {
+            return false;
+        }
+        clearstatcache(true, $target);
+        if (!is_file($target) || is_link($target) || !is_readable($target)
+            || (int) filesize($target) !== (int) $check['size']) {
+            return false;
+        }
+        $actual = @hash_file('sha256', $target);
+        return is_string($actual) && hash_equals($check['sha256'], $actual);
+    }
+
+    /**
+     * Non-destructive, incremental scan of files that only exist on the
+     * destination. Skip managed/temporary locations, never follow symlinks,
+     * and never treat the old destination as the source of truth.
+     *
+     * A failed scan is a warning, NOT a failed restore: only the source
+     * archive's verified files are mandatory for successful migration.
+     */
+    private function audit_destination_extras_batch(array &$state) {
+        if (!empty($state['extra_audit_complete'])) {
+            $state['phase'] = 'finalize';
+            return;
+        }
+        if (empty($state['extra_audit_started'])) {
+            $roots = UWHSM_Paths::roots();
+            $plans = array(
+                array('root' => $roots['site'], 'prefix' => ''),
+                array('root' => $roots['content'], 'prefix' => 'wp-content/'),
+                array('root' => $roots['plugins'], 'prefix' => 'wp-content/plugins/'),
+                array('root' => $roots['uploads'], 'prefix' => 'wp-content/uploads/'),
+            );
+            $state['extra_audit_stack'] = array();
+            foreach (array_reverse($plans) as $plan) {
+                $root = untrailingslashit(wp_normalize_path($plan['root']));
+                $state['extra_audit_stack'][] = array('root' => $root, 'dir' => $root,
+                    'prefix' => $plan['prefix'], 'cursor' => 0);
+            }
+            $state['extra_audit_count'] = 0;
+            $state['extra_audit_examples'] = array();
+            $state['extra_audit_started'] = true;
+        }
+        // Reuse the already-loaded archive integrity map rather than building a
+        // second huge lookup array on memory-limited shared hosting.
+        $expected = (array) ($state['integrity']['files'] ?? array());
+        $start = microtime(true);
+        $processed = 0;
+        while (!empty($state['extra_audit_stack']) && $processed < 650 && microtime(true) - $start < 1.5) {
+            $n = count($state['extra_audit_stack']) - 1;
+            $frame = $state['extra_audit_stack'][$n];
+            $dir = (string) $frame['dir'];
+            if (is_link($dir) || !is_dir($dir)) {
+                array_pop($state['extra_audit_stack']);
+                continue;
+            }
+            $items = @scandir($dir);
+            if (!is_array($items)) {
+                $state['extra_audit_incomplete'] = true;
+                array_pop($state['extra_audit_stack']);
+                continue;
+            }
+            $cursor = (int) ($frame['cursor'] ?? 0);
+            if ($cursor >= count($items)) {
+                array_pop($state['extra_audit_stack']);
+                continue;
+            }
+            $state['extra_audit_stack'][$n]['cursor'] = $cursor + 1;
+            $name = $items[$cursor];
+            if ('.' === $name || '..' === $name) {
+                continue;
+            }
+            $processed++;
+            $path = wp_normalize_path($dir . '/' . $name);
+            $root = (string) $frame['root'];
+            $relative = ltrim(substr($path, strlen($root)), '/');
+            $rel = (string) $frame['prefix'] . $relative;
+            // Flag this narrowly scoped suspicious directory even though the
+            // normal backup inventory intentionally excludes it. Never enter
+            // or delete its contents.
+            if (is_dir($path) && !is_link($path) && UWHSM_Paths::is_suspicious_sc_loader_path($rel)) {
+                $this->record_destination_extra($rel . '/', $state);
+                continue;
+            }
+            if ($this->extra_scan_excluded($path, $rel, $root)) {
+                continue;
+            }
+            if (is_link($path)) {
+                // Never descend through a symlink to paths outside WordPress.
+                $state['extra_audit_incomplete'] = true;
+                continue;
+            }
+            if (is_dir($path)) {
+                $state['extra_audit_stack'][] = array('root' => $root, 'dir' => $path,
+                    'prefix' => (string) $frame['prefix'], 'cursor' => 0);
+                continue;
+            }
+            if (is_file($path) && !isset($expected['site/' . $rel])) {
+                $this->record_destination_extra($rel, $state);
+            }
+        }
+        if (empty($state['extra_audit_stack'])) {
+            $state['extra_audit_complete'] = true;
+            $state['phase'] = 'finalize';
+            unset($state['extra_audit_stack']);
+        }
+    }
+
+    private function record_destination_extra($relative, array &$state) {
+        $state['extra_audit_count'] = (int) ($state['extra_audit_count'] ?? 0) + 1;
+        if (count((array) ($state['extra_audit_examples'] ?? array())) < 20) {
+            $state['extra_audit_examples'][] = $relative;
+        }
+    }
+
+    /** Match original backup exclusions without traversing host-managed trees. */
+    private function extra_scan_excluded($physical, $relative, $root) {
+        $relative = ltrim(wp_normalize_path($relative), '/');
+        $physical = untrailingslashit(wp_normalize_path($physical));
+        $root = untrailingslashit(wp_normalize_path($root));
+        $roots = UWHSM_Paths::roots();
+        $protected = array(
+            $this->base, $this->import_dir, $this->backup_dir, $this->checkpoint_dir,
+            UWHSM_Paths::content_root() . 'cache', UWHSM_Paths::content_root() . 'upgrade',
+            UWHSM_Paths::upload_root() . 'cache',
+            UWHSM_Paths::content_root() . 'wflogs',
+            UWHSM_Paths::content_root() . 'litespeed',
+            UWHSM_Paths::content_root() . 'et-cache',
+        );
+        $protected = array_merge($protected, UWHSM_Paths::external_backup_roots());
+        // A more specific WordPress root owns its files. Scan it exactly once.
+        foreach ((array) $roots as $specific) {
+            $specific = untrailingslashit(wp_normalize_path($specific));
+            if ($specific !== $root && strlen($specific) > strlen($root)
+                && 0 === strpos($specific . '/', $root . '/')) {
+                $protected[] = $specific;
+            }
+        }
+        foreach ($protected as $dir) {
+            $dir = untrailingslashit(wp_normalize_path($dir));
+            if ($dir !== '' && ($physical === $dir || 0 === strpos($physical, $dir . '/'))
+                && $root !== $dir && 0 !== strpos($root, $dir . '/')) {
+                return true;
+            }
+        }
+        $own = wp_normalize_path('wp-content/plugins/' . plugin_basename(UWHSM_DIR));
+        if (0 === strpos($relative, trailingslashit($own))
+            || $relative === untrailingslashit($own)
+            || in_array($relative, array('wp-admin', 'wp-includes'), true)
+            || $this->skip_restore_file($relative)
+            || $this->is_ephemeral_file($relative)
+            || UWHSM_Paths::is_external_backup_archive_path($relative)) {
+            return true;
+        }
+        return false;
     }
 
     private static function restore_needs_incremental_verify(array $state) {

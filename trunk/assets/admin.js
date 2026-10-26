@@ -564,6 +564,12 @@
         progress(p,100,state.rolled_back ? __('Rollback complete — homepage needs review', 'uwh-site-migrator') : __('Files and database restored — homepage needs review', 'uwh-site-migrator'));
         log(l,state.rolled_back ? __('The automatic rollback finished, but the homepage check did not pass. Review the destination error log and the retained safety checkpoint.', 'uwh-site-migrator') : __('Import finished, but the homepage check did not pass. Check the destination error log before calling this migration successful. Do not repeat the restore automatically.', 'uwh-site-migrator'),true);
       }
+      // A hosting-managed .private/.htaccess may be removed/rewritten after a
+      // successful file copy. Clear the old red error, but don't conceal that
+      // directory access protection needs an administrator review.
+      if (!state.rolled_back && state.private_access_rule_warning && homepageOk && l) {
+        log(l, __('Restore completed, but the destination .private/.htaccess is missing or modified. Verify private-directory access restrictions on Apache/Nginx before making the site public. Details are in Activity Logs.', 'uwh-site-migrator'));
+      }
       state.homepage_ok = homepageOk;
       showRestoreSuccess(state, ui);
       return state;

@@ -1,3 +1,7 @@
+2.4.14 — Host-managed private access-rule verification compatibility:
+- Restore the exact `.private/.htaccess` file normally from the archive. If the host removes or changes it afterward, complete only this specific optional final checksum check with a persistent warning.
+- Preserve strict integrity checks for all other files, including themes, plugins and media. Verify destination access rules before publishing the site.
+
 2.4.13 — Optional .htaccess.bk restore compatibility:
 - Exclude inactive .htaccess.bk backup copies from newly created site archives. When older archives include them, do not copy or require these optional files in post-restore verification.
 - Resume already-paused verification jobs safely; retain strict checksum checks for all required site files, and log each optional exclusion as informational.

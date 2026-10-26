@@ -24,7 +24,7 @@ final class UWHSM_Logger {
     private static function safe_context(array $context) {
         $allowed = array(
             'backup', 'job', 'restore_id', 'checkpoint', 'transfer_id', 'import_id', 'pull_id', 'source_domain',
-            'delivery', 'frequency', 'size', 'bytes', 'progress', 'phase', 'error', 'message', 'deleted', 'kept', 'next_run'
+            'delivery', 'frequency', 'size', 'bytes', 'count', 'progress', 'phase', 'error', 'message', 'deleted', 'kept', 'next_run'
         );
         $out = array();
         foreach ($allowed as $key) {
