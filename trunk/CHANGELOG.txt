@@ -1,3 +1,8 @@
+2.4.15 — Background backup reliability release:
+- Improve background backup scheduling, controlled retries, and recovery of missing WP-Cron events so saved jobs can continue when the browser tab is inactive, subject to server cron execution.
+- Retain adaptive file/database batch processing and existing backup cancellation/resume behavior.
+- No changes to restore, Direct Migration, Google Drive, or other runtime behavior beyond the fixes already included in the preceding 2.4.14 development package.
+
 2.4.14 — Host-managed private access-rule verification compatibility:
 - Restore the exact `.private/.htaccess` file normally from the archive. If the host removes or changes it afterward, complete only this specific optional final checksum check with a persistent warning.
 - Preserve strict integrity checks for all other files, including themes, plugins and media. Verify destination access rules before publishing the site.

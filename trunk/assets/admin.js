@@ -69,6 +69,24 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let backupRun = 0;
   const restoreCancelRequested = new Set();
+  // A stop action on the persistent monitor must also terminate this tab's
+  // foreground polling loop. Server-side cancellation is separately durable.
+  document.addEventListener('uwhsm-backup-stop-requested', () => {
+    backupRun++;
+    window.UWHSM_BACKUP_ACTIVE = false;
+    const s = $('#svm-start'), d = $('#svm-start-drive'), r = $('#svm-resume-backup');
+    // Do not start another backup until the in-flight batch has released
+    // the lock and the server confirms cancellation.
+    if (s) s.disabled = true;
+    if (d) d.disabled = true;
+    if (r) { r.disabled = true; r.hidden = true; }
+  });
+  document.addEventListener('uwhsm-backup-stop-finished', () => {
+    const s = $('#svm-start'), d = $('#svm-start-drive'), r = $('#svm-resume-backup');
+    if (s) s.disabled = false;
+    if (d) d.disabled = false;
+    if (r) { r.disabled = false; r.hidden = true; }
+  });
 
   let driveRun = 0, inventoryRun = 0, driveCount = 0, driveBytes = 0;
   const humanBytes = bytes => {
@@ -359,13 +377,22 @@
     try {
       let state = job ? { job, done: false } : await post('uwhsm_backup_start', { delivery });
       localStorage.setItem('svmBackupJob', state.job);
-      if (!job && $('#svm-background-opt') && $('#svm-background-opt').checked) { await post('uwhsm_background_configure', {job: state.job, enabled: '1'}); }
+      if (!job && $('#svm-background-opt') && $('#svm-background-opt').checked) {
+        try {
+          await post('uwhsm_background_configure', {job: state.job, enabled: '1'});
+        } catch (error) {
+          // The backup job has already been created. A missing cron schedule
+          // must not strand it before its first file or database batch.
+          if (l) log(l, __('Background scheduling is unavailable. The saved backup will continue in this tab; configure hosting cron for unattended processing.', 'uwh-site-migrator') + ' ' + error.message, true);
+        }
+      }
       progress(p, 1, state.label || __('Resuming backup', 'uwh-site-migrator'));
       let transientFailures = 0;
       while (!state.done && thisRun === backupRun) {
         await sleep(state.busy ? 1500 : 180);
         try {
           state = await post('uwhsm_backup_step', { job: state.job });
+          if (thisRun !== backupRun || state.cancelled) return;
           transientFailures = 0;
           if (l && l.classList.contains('is-error')) l.textContent = '';
           progress(p, state.progress, state.label);
@@ -855,11 +882,11 @@
 
   document.addEventListener('click', async e => {
     const b = e.target.closest('.svm-checkpoint-rollback'); if (!b) return;
-    const useCheckpoint = !!($('#svm-rollback-checkpoint') && $('#svm-rollback-checkpoint').checked);
-    if (!window.confirm(useCheckpoint ? __('Rollback this website to the selected safety checkpoint? A new checkpoint of the current site will be created first.', 'uwh-site-migrator') : __('Rollback this website to the selected checkpoint WITHOUT creating a backup of the current site? Automatic rollback will be unavailable.', 'uwh-site-migrator'))) return;
+    // Keep the original default safety behavior even though the UI toggle is no longer shown.
+    if (!window.confirm(__('Rollback this website to the selected safety checkpoint? A new checkpoint of the current site will be created first.', 'uwh-site-migrator'))) return;
     b.disabled = true;
     try {
-      const state = await post('uwhsm_checkpoint_rollback_start', { checkpoint_name: b.dataset.checkpoint || '', create_checkpoint: useCheckpoint ? '1' : '0' });
+      const state = await post('uwhsm_checkpoint_rollback_start', { checkpoint_name: b.dataset.checkpoint || '', create_checkpoint: '1' });
       progress($('#svm-restore-progress'), 35, state.label || __('Preparing restore from checkpoint', 'uwh-site-migrator'));
       await startRestoreWorkflow(state);
     } catch (err) { const l = $('#svm-restore-log'); if (l) log(l, err.message, true); b.disabled = false; }

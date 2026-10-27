@@ -93,10 +93,10 @@ final class UWHSM_Admin {
 
         wp_enqueue_style('uwhsm-menu-icon', UWHSM_URL . 'assets/menu-icon.css', array(), UWHSM_VERSION);
         wp_enqueue_script('svm-dashboard-metrics', UWHSM_URL . 'assets/dashboard-metrics.js', array('wp-i18n'), UWHSM_VERSION, true);
-        wp_enqueue_script('svm-admin', UWHSM_URL . 'assets/admin.js', array('svm-dashboard-metrics', 'wp-i18n'), UWHSM_VERSION . '-restore-cancel-response-fix-3', true);
+        wp_enqueue_script('svm-admin', UWHSM_URL . 'assets/admin.js', array('svm-dashboard-metrics', 'wp-i18n'), (string) filemtime(UWHSM_DIR . 'assets/admin.js'), true);
         wp_enqueue_script('svm-background', UWHSM_URL . 'assets/background.js', array('svm-admin', 'wp-i18n'), UWHSM_VERSION, true);
-        wp_enqueue_script('svm-backup-monitor', UWHSM_URL . 'assets/backup-monitor.js', array('svm-admin', 'wp-i18n'), UWHSM_VERSION, true);
-        wp_enqueue_style('svm-admin', UWHSM_URL . 'assets/admin.css', array(), UWHSM_VERSION . '-restore-cancel-response-fix-3');
+        wp_enqueue_script('svm-backup-monitor', UWHSM_URL . 'assets/backup-monitor.js', array('svm-admin', 'wp-i18n'), (string) filemtime(UWHSM_DIR . 'assets/backup-monitor.js'), true);
+        wp_enqueue_style('svm-admin', UWHSM_URL . 'assets/admin.css', array(), (string) filemtime(UWHSM_DIR . 'assets/admin.css'));
         wp_set_script_translations('svm-dashboard-metrics', 'uwh-site-migrator', UWHSM_DIR . 'languages');
         wp_set_script_translations('svm-admin', 'uwh-site-migrator', UWHSM_DIR . 'languages');
         wp_set_script_translations('svm-background', 'uwh-site-migrator', UWHSM_DIR . 'languages');
@@ -199,7 +199,11 @@ final class UWHSM_Admin {
             <section id="svm-backup-monitor" class="svm-backup-monitor" hidden aria-live="polite">
                 <div class="svm-backup-monitor-top">
                     <div><span class="dashicons dashicons-update"></span> <strong id="svm-backup-monitor-title"><?php esc_html_e('Background backup', 'uwh-site-migrator'); ?></strong></div>
-                    <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-import-export')); ?>"><?php esc_html_e('View backup', 'uwh-site-migrator'); ?></a>
+                    <div class="svm-backup-monitor-actions">
+                        <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-import-export')); ?>"><?php esc_html_e('View backup', 'uwh-site-migrator'); ?></a>
+                        <button type="button" class="button button-small svm-backup-resume" id="svm-resume-monitor" hidden><?php esc_html_e('Resume now', 'uwh-site-migrator'); ?></button>
+                        <button type="button" class="button button-small svm-backup-stop" id="svm-stop-backup"><?php esc_html_e('Stop backup', 'uwh-site-migrator'); ?></button>
+                    </div>
                 </div>
                 <div class="svm-progress"><i id="svm-backup-monitor-fill" style="width:0%"></i></div>
                 <div class="svm-backup-monitor-meta"><span id="svm-backup-monitor-label"><?php esc_html_e('Loading status…', 'uwh-site-migrator'); ?></span><strong id="svm-backup-monitor-percent">0%</strong></div>
@@ -440,7 +444,7 @@ final class UWHSM_Admin {
             <section class="svm-card">
                 <div class="svm-card-head"><span class="dashicons dashicons-database-export"></span><div><h2><?php esc_html_e('Create backup', 'uwh-site-migrator');
                  ?></h2><p><?php esc_html_e('Database, themes, plugins, uploads and WordPress files.', 'uwh-site-migrator'); ?></p></div></div>
-                <label class="svm-confirm"><input type="checkbox" id="svm-background-opt"> <?php esc_html_e('Continue this backup in the background (requires working cron).', 'uwh-site-migrator'); ?></label>
+                <label class="svm-confirm"><input type="checkbox" id="svm-background-opt" checked> <?php esc_html_e('Continue this backup in the background (requires working cron).', 'uwh-site-migrator'); ?></label>
                 <p class="description"><?php esc_html_e('Progress remains visible across Site Migrator pages. For reliable unattended speed, configure a real server cron; WP-Cron depends on site traffic.', 'uwh-site-migrator'); ?></p>
                 <button class="button button-primary button-hero" id="svm-start" <?php disabled(is_multisite());
                  ?>><?php esc_html_e('Create full backup', 'uwh-site-migrator'); ?></button>
@@ -529,7 +533,6 @@ final class UWHSM_Admin {
             <section class="svm-card svm-list svm-grid-wide" id="svm-checkpoints">
                 <div class="svm-card-head"><span class="dashicons dashicons-backup"></span><div><h2><?php esc_html_e('Restore safety checkpoints', 'uwh-site-migrator');
                  ?></h2><p><?php esc_html_e('Optional full-site safety backups created before selected restores. The newest three are retained.', 'uwh-site-migrator'); ?></p></div></div>
-                <label class="svm-checkpoint-option"><input type="checkbox" id="svm-rollback-checkpoint" checked><span><strong><?php esc_html_e('Create safety checkpoint before manual rollback', 'uwh-site-migrator'); ?></strong><small><?php esc_html_e('Enabled by default: save the current site before restoring a saved checkpoint. Uncheck to skip that backup.', 'uwh-site-migrator'); ?></small></span></label>
                 <table><thead><tr><th><?php esc_html_e('Checkpoint', 'uwh-site-migrator');
                  ?></th><th><?php esc_html_e('Created', 'uwh-site-migrator');
                  ?></th><th><?php esc_html_e('Size', 'uwh-site-migrator');
@@ -961,7 +964,7 @@ final class UWHSM_Admin {
         $d = $this->diagnostic_snapshot();
         $maintenance = UWHSM_Engine::instance()->maintenance_status();
         $failed_logs = UWHSM_Logger::recent(array('status' => 'failed', 'limit' => 8));
-        $this->page_start(__('Troubleshooting & Diagnostics', 'uwh-site-migrator'), __('Inspect server readiness, automation, recovery state and recent failures before they become migration problems.', 'uwh-site-migrator'), 'troubleshooting');
+        $this->page_start(__('Troubleshooting & Diagnostics', 'uwh-site-migrator'), __('Review migration readiness, maintenance access, server limits and recent failures.', 'uwh-site-migrator'), 'troubleshooting');
         ?>
         <section class="svm-diagnostic-hero <?php echo $d['required_failures'] ? 'has-issues' : 'is-ready'; ?>">
             <div><span class="dashicons <?php echo $d['required_failures'] ? 'dashicons-warning' : 'dashicons-yes-alt';
@@ -982,41 +985,71 @@ final class UWHSM_Admin {
         </section>
 
         <section class="svm-health svm-health-extended">
-            <?php foreach ($d['checks'] as $item): ?><div class="svm-health-item <?php echo $item['ok'] ? 'is-good' : (!empty($item['optional']) ? 'is-neutral' : 'is-bad');
-             ?>"><span class="dashicons <?php echo $item['ok'] ? 'dashicons-yes-alt' : (!empty($item['optional']) ? 'dashicons-minus' : 'dashicons-warning');
-             ?>"></span><div><small><?php echo esc_html($item['label']);
-             ?><?php echo !empty($item['optional']) ? esc_html__(' · optional', 'uwh-site-migrator') : '';
-             ?></small><strong><?php echo esc_html($item['value']);
-             ?></strong></div></div><?php endforeach; ?>
+            <?php foreach ($d['checks'] as $item): ?>
+                <?php // Keep ZipArchive in required-readiness calculations and diagnostic exports, without a redundant status tile on this page. ?>
+                <?php if ('ZipArchive' === $item['label']) { continue; } ?>
+                <div class="svm-health-item <?php echo $item['ok'] ? 'is-good' : (!empty($item['optional']) ? 'is-neutral' : 'is-bad'); ?>">
+                    <span class="dashicons <?php echo $item['ok'] ? 'dashicons-yes-alt' : (!empty($item['optional']) ? 'dashicons-minus' : 'dashicons-warning'); ?>"></span>
+                    <div><small><?php echo esc_html($item['label']); ?><?php echo !empty($item['optional']) ? esc_html__(' · optional', 'uwh-site-migrator') : ''; ?></small>
+                    <strong><?php echo esc_html($item['value']); ?></strong></div>
+                </div>
+            <?php endforeach; ?>
         </section>
 
-        <section class="svm-card" id="uwhsm-maintenance" style="margin:20px 0">
-            <div class="svm-card-head"><span class="dashicons dashicons-admin-tools"></span><div>
-                <h2><?php esc_html_e('Maintenance mode control', 'uwh-site-migrator'); ?></h2>
-                <p><?php esc_html_e('Manually enable maintenance, or release a stalled migration guard without needing its recovery checkpoint.', 'uwh-site-migrator'); ?></p>
-            </div></div>
+        <section class="svm-card svm-maintenance-card" id="uwhsm-maintenance" aria-labelledby="uwhsm-maintenance-title">
+            <div class="svm-maintenance-heading">
+                <div class="svm-card-head">
+                    <span class="dashicons dashicons-admin-tools" aria-hidden="true"></span>
+                    <div>
+                        <span class="svm-maintenance-eyebrow"><?php esc_html_e('SITE ACCESS & RECOVERY', 'uwh-site-migrator'); ?></span>
+                        <h2 id="uwhsm-maintenance-title"><?php esc_html_e('Maintenance mode control', 'uwh-site-migrator'); ?></h2>
+                        <p><?php esc_html_e('Manage visitor access and safely release a stalled migration guard.', 'uwh-site-migrator'); ?></p>
+                    </div>
+                </div>
+                <span class="svm-maintenance-overall <?php echo ($maintenance['manual'] || $maintenance['restore'] || $maintenance['core']) ? 'is-active' : 'is-clear'; ?>">
+                    <span class="svm-maintenance-dot" aria-hidden="true"></span>
+                    <?php echo ($maintenance['manual'] || $maintenance['restore'] || $maintenance['core'])
+                        ? esc_html__('Maintenance detected', 'uwh-site-migrator')
+                        : esc_html__('Maintenance not active', 'uwh-site-migrator'); ?>
+                </span>
+            </div>
+
             <?php if ('success' === UWHSM_Compat::get_value('uwhsm_maintenance_result')): ?>
-                <p class="notice notice-success inline" style="padding:10px"><?php esc_html_e('Maintenance setting saved.', 'uwh-site-migrator'); ?></p>
+                <div class="svm-maintenance-feedback is-success" role="status"><span class="dashicons dashicons-yes-alt" aria-hidden="true"></span><?php esc_html_e('Maintenance setting saved.', 'uwh-site-migrator'); ?></div>
             <?php elseif ('error' === UWHSM_Compat::get_value('uwhsm_maintenance_result')): ?>
-                <p class="notice notice-error inline" style="padding:10px"><?php echo esc_html(UWHSM_Compat::get_value('uwhsm_maintenance_detail')); ?></p>
+                <div class="svm-maintenance-feedback is-error" role="alert"><span class="dashicons dashicons-warning" aria-hidden="true"></span><?php echo esc_html(UWHSM_Compat::get_value('uwhsm_maintenance_detail')); ?></div>
             <?php endif; ?>
-            <dl class="svm-diagnostic-list">
-                <div><dt><?php esc_html_e('Manual mode', 'uwh-site-migrator'); ?></dt><dd><?php echo $maintenance['manual'] ? esc_html__('On', 'uwh-site-migrator') : esc_html__('Off', 'uwh-site-migrator'); ?></dd></div>
-                <div><dt><?php esc_html_e('Restore maintenance guard', 'uwh-site-migrator'); ?></dt><dd><?php echo $maintenance['restore'] ? esc_html__('Active', 'uwh-site-migrator') : esc_html__('Not active', 'uwh-site-migrator'); ?></dd></div>
-                <div><dt><?php esc_html_e('WordPress core maintenance', 'uwh-site-migrator'); ?></dt><dd><?php echo $maintenance['core'] ? ($maintenance['core_stale'] ? esc_html__('Stale lock detected', 'uwh-site-migrator') : esc_html__('Active or unrecognized lock', 'uwh-site-migrator')) : esc_html__('Not active', 'uwh-site-migrator'); ?></dd></div>
-            </dl>
-            <p class="svm-note"><?php esc_html_e('Turning maintenance off stops an unfinished restore session, but cannot undo files or database changes. Take a hosting backup first. Only stale WordPress core maintenance files can be removed.', 'uwh-site-migrator'); ?></p>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                    <input type="hidden" name="action" value="uwhsm_maintenance_control"><input type="hidden" name="operation" value="on">
+
+            <div class="svm-maintenance-actions">
+                <form class="svm-maintenance-action-panel" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="uwhsm_maintenance_control">
+                    <input type="hidden" name="operation" value="on">
                     <?php wp_nonce_field('uwhsm_maintenance_control'); ?>
-                    <button type="submit" class="button" <?php disabled($maintenance['manual']); ?>><?php esc_html_e('Turn maintenance ON', 'uwh-site-migrator'); ?></button>
+                    <div class="svm-maintenance-action-heading">
+                        <span class="dashicons dashicons-lock" aria-hidden="true"></span>
+                        <strong><?php esc_html_e('Enable maintenance', 'uwh-site-migrator'); ?></strong>
+                    </div>
+                    <p><?php esc_html_e('Show visitors the maintenance page. Signed-in administrators can still view the live site unless a restore guard is active.', 'uwh-site-migrator'); ?></p>
+                    <div class="svm-maintenance-action-bottom">
+                        <button type="submit" class="button svm-maintenance-button" <?php disabled($maintenance['manual']); ?>><?php esc_html_e('Turn maintenance ON', 'uwh-site-migrator'); ?></button>
+                    </div>
                 </form>
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                    <input type="hidden" name="action" value="uwhsm_maintenance_control"><input type="hidden" name="operation" value="off">
+                <form class="svm-maintenance-action-panel svm-maintenance-release" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="uwhsm_maintenance_control">
+                    <input type="hidden" name="operation" value="off">
                     <?php wp_nonce_field('uwhsm_maintenance_control'); ?>
-                    <label class="svm-confirm"><input type="checkbox" name="acknowledge" value="1" required> <?php esc_html_e('I understand an incomplete restore may leave the website partially migrated.', 'uwh-site-migrator'); ?></label>
-                    <button type="submit" class="button button-primary"><?php esc_html_e('Turn maintenance OFF', 'uwh-site-migrator'); ?></button>
+                    <div class="svm-maintenance-action-heading">
+                        <span class="dashicons dashicons-unlock" aria-hidden="true"></span>
+                        <strong><?php esc_html_e('Disable maintenance', 'uwh-site-migrator'); ?></strong>
+                    </div>
+                    <p><?php esc_html_e('Allow everyone to access the website. A running restore or WordPress core maintenance lock still takes priority.', 'uwh-site-migrator'); ?></p>
+                    <label class="svm-maintenance-ack">
+                        <input type="checkbox" name="acknowledge" value="1" required>
+                        <span><?php esc_html_e('I understand the website may be partially migrated.', 'uwh-site-migrator'); ?></span>
+                    </label>
+                    <div class="svm-maintenance-action-bottom">
+                        <button type="submit" class="button button-primary svm-maintenance-button"><?php esc_html_e('Turn maintenance OFF', 'uwh-site-migrator'); ?></button>
+                    </div>
                 </form>
             </div>
         </section>
@@ -1062,9 +1095,17 @@ final class UWHSM_Admin {
                 <?php $this->render_pending_restore_controls($d['pending_restores']); ?>
                 <p class="svm-note svm-path-note"><strong><?php esc_html_e('Storage path:', 'uwh-site-migrator');
                  ?></strong> <code><?php echo esc_html($d['base']); ?></code></p>
+                <div class="svm-storage-drive-reset" role="group" aria-labelledby="svm-drive-reset">
+                <h3 id="svm-drive-reset"><?php esc_html_e('Reset Drive connection', 'uwh-site-migrator'); ?></h3>
+                <?php UWHSM_Drive::render_notice('site-migrator-troubleshooting'); ?>
+                <p class="svm-note"><?php esc_html_e('Clears only the local Google Drive connection. It does not delete backups from Drive.', 'uwh-site-migrator'); ?></p>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php'));
+                 ?>"><input type="hidden" name="action" value="uwhsm_drive_action"><input type="hidden" name="operation" value="reset"><input type="hidden" name="return_page" value="site-migrator-troubleshooting"><?php wp_nonce_field('uwhsm_drive');
+                 ?><button class="button" type="submit"><?php esc_html_e('Clear local connection', 'uwh-site-migrator'); ?></button></form>
+                </div>
             </section>
 
-            <section class="svm-card">
+            <section class="svm-card svm-diagnostics-automation">
                 <div class="svm-card-head"><span class="dashicons dashicons-clock"></span><div><h2><?php esc_html_e('Automation & WP-Cron', 'uwh-site-migrator');
                  ?></h2><p><?php esc_html_e('Automatic backups and background processing depend on reliable cron execution.', 'uwh-site-migrator'); ?></p></div></div>
                 <dl class="svm-diagnostic-list">
@@ -1087,28 +1128,6 @@ final class UWHSM_Admin {
             </section>
 
             <section class="svm-card">
-                <div class="svm-card-head"><span class="dashicons dashicons-cloud"></span><div><h2><?php esc_html_e('Google Drive', 'uwh-site-migrator');
-                 ?></h2><p><?php esc_html_e('Connection used by manual and automatic cloud delivery.', 'uwh-site-migrator'); ?></p></div></div>
-                <dl class="svm-diagnostic-list">
-                    <div><dt><?php esc_html_e('Status', 'uwh-site-migrator');
-                     ?></dt><dd><?php echo esc_html(!empty($d['drive']['connected']) ? __('Connected', 'uwh-site-migrator') : __('Not connected', 'uwh-site-migrator')); ?></dd></div>
-                    <div><dt><?php esc_html_e('Account', 'uwh-site-migrator');
-                     ?></dt><dd><?php echo !empty($d['drive']['connected']) ? esc_html((string) ($d['drive']['email'] ?? __('Connected account', 'uwh-site-migrator'))) : '—'; ?></dd></div>
-                    <div><dt><?php esc_html_e('OpenSSL', 'uwh-site-migrator');
-                     ?></dt><dd><?php echo esc_html(extension_loaded('openssl') ? __('Available', 'uwh-site-migrator') : __('Missing', 'uwh-site-migrator')); ?></dd></div>
-                    <div><dt><?php esc_html_e('cURL', 'uwh-site-migrator');
-                     ?></dt><dd><?php echo esc_html(extension_loaded('curl') ? __('Available', 'uwh-site-migrator') : __('Missing', 'uwh-site-migrator')); ?></dd></div>
-                    <?php if ($d['drive_error']): ?><div><dt><?php esc_html_e('Drive error', 'uwh-site-migrator');
-                     ?></dt><dd><?php echo esc_html($d['drive_error']);
-                     ?></dd></div><?php endif; ?>
-                </dl>
-                <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-drive'));
-                 ?>"><?php esc_html_e('Open Drive Settings', 'uwh-site-migrator'); ?></a></p>
-            </section>
-        </div>
-
-        <div class="svm-grid svm-diagnostics-grid">
-            <section class="svm-card">
                 <div class="svm-card-head"><span class="dashicons dashicons-warning"></span><div><h2><?php esc_html_e('Recent failures', 'uwh-site-migrator');
                  ?></h2><p><?php esc_html_e('Latest failed operations captured by Activity Logs.', 'uwh-site-migrator'); ?></p></div></div>
                 <div class="svm-failure-list">
@@ -1124,28 +1143,8 @@ final class UWHSM_Admin {
                  ?>"><?php esc_html_e('View failure logs', 'uwh-site-migrator'); ?></a></p>
             </section>
 
-            <section class="svm-card">
-                <div class="svm-card-head"><span class="dashicons dashicons-backup"></span><div><h2><?php esc_html_e('Recovery shortcuts', 'uwh-site-migrator');
-                 ?></h2><p><?php esc_html_e('Jump directly to recovery and migration controls.', 'uwh-site-migrator'); ?></p></div></div>
-                <div class="svm-recovery-links">
-                    <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=site-vault-migrator'));
-                     ?>"><?php esc_html_e('Overview', 'uwh-site-migrator'); ?></a>
-                    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-import-export'));
-                     ?>"><?php esc_html_e('Import / Export', 'uwh-site-migrator'); ?></a>
-                    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-direct'));
-                     ?>"><?php esc_html_e('Direct Migration', 'uwh-site-migrator'); ?></a>
-                    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-logs'));
-                     ?>"><?php esc_html_e('Activity Logs', 'uwh-site-migrator'); ?></a>
-                </div>
-                <hr class="svm-soft-rule">
-                <h3 id="svm-drive-reset"><?php esc_html_e('Reset Drive connection', 'uwh-site-migrator'); ?></h3>
-                <?php UWHSM_Drive::render_notice('site-migrator-troubleshooting'); ?>
-                <p class="svm-note"><?php esc_html_e('Clears only the local Google Drive connection. It does not delete backups from Drive.', 'uwh-site-migrator'); ?></p>
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php'));
-                 ?>"><input type="hidden" name="action" value="uwhsm_drive_action"><input type="hidden" name="operation" value="reset"><input type="hidden" name="return_page" value="site-migrator-troubleshooting"><?php wp_nonce_field('uwhsm_drive');
-                 ?><button class="button" type="submit"><?php esc_html_e('Clear local connection', 'uwh-site-migrator'); ?></button></form>
-            </section>
         </div>
+
         <?php $this->page_end();
     }
 

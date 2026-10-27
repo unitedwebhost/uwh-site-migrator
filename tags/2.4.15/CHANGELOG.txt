@@ -1,0 +1,345 @@
+2.4.15 — Background backup reliability release:
+- Improve background backup scheduling, controlled retries, and recovery of missing WP-Cron events so saved jobs can continue when the browser tab is inactive, subject to server cron execution.
+- Retain adaptive file/database batch processing and existing backup cancellation/resume behavior.
+- No changes to restore, Direct Migration, Google Drive, or other runtime behavior beyond the fixes already included in the preceding 2.4.14 development package.
+
+2.4.14 — Host-managed private access-rule verification compatibility:
+- Restore the exact `.private/.htaccess` file normally from the archive. If the host removes or changes it afterward, complete only this specific optional final checksum check with a persistent warning.
+- Preserve strict integrity checks for all other files, including themes, plugins and media. Verify destination access rules before publishing the site.
+
+2.4.13 — Optional .htaccess.bk restore compatibility:
+- Exclude inactive .htaccess.bk backup copies from newly created site archives. When older archives include them, do not copy or require these optional files in post-restore verification.
+- Resume already-paused verification jobs safely; retain strict checksum checks for all required site files, and log each optional exclusion as informational.
+- Keep active server configuration protected and preserve transfer/restore/database/Elementor/Google Drive functionality.
+
+2.4.12 – Elementor restore-finalization compatibility (v2.4.5 behavior):
+- Retire the extra 99% Elementor/template postmeta byte-comparison and rewrite pass introduced after v2.4.5. Imported Elementor layout and display-condition metadata now remains untouched after database import.
+- Interrupted jobs paused at postmeta verification skip that retired pass on Resume. Keep verified database imports, slug reconciliation, archive/template presence checks, file SHA-256 checks, backup/Drive and recovery.
+- Plugin versions and names remain unchanged for this compatibility patch.
+
+2.4.12 - Serialized data compatibility release:
+- Prevent malformed source serialized values from aborting URL/path rewrite at restore finalization; keep their original bytes and emit an activity warning.
+- Continue safe byte-length updates for valid serialized data, without changing other migration, backup, Drive or recovery behavior.
+
+2.4.11 — WordPress.org maintenance update:
+- Add administrator-confirmed Skip & Resume for active plugins absent from the Direct Migration archive. Only missing plugin activations are skipped; archive, database, theme, and file integrity verification remain required.
+- Keep the existing backup, restore, Google Drive, and recovery functionality unchanged; restore packages and plugin names remain compatible.
+- Keep the plugin header, runtime version constant, and readme Stable tag at 2.4.11.
+
+2.4.10 – Direct restore without full-site file staging (same version and plugin names):
+- Remove the extra protected file-staging and publish pass that could stop Direct Migration with "Could not secure private restore staging." Site files now restore directly from the authenticated backup archive in bounded, resumable batches as in v2.4.5.
+- Retain SHA-256 checks and temporary destination-local atomic replacement for each file, plus large-file partial resume and final destination-file verification. WordPress options/account shadow-table protection, database export fixes, recovery controls and Google Drive are unchanged.
+- A paused legacy "stage_files" job can be resumed: it restarts only its file-copy phase directly from the original archive; any prior staged temporary files are removed during normal job cleanup. No existing live files are deleted to enable this conversion.
+- Full-site atomic publish is no longer claimed; a direct restore may modify the destination before it finishes. Use an opt-in restore checkpoint or independent hosting backup if rollback is needed.
+
+2.4.10 – v2.4.5 behavior regression repair (version and two plugin names unchanged):
+- Reuse the v2.4.5 WordPress-prefix database table discovery and stable resumable row-cursor export. Do not capture unrelated database tables on shared hosting. Keep all prefixed Elementor, theme, postmeta, plugin and options tables.
+- Remove the cross-request COUNT/MAX snapshot checks that caused backup errors during postmeta updates. As with v2.4.5, pause source-site writes for a truly consistent migration; a live multi-request backup is not a transactional database snapshot.
+- Fix the critical options-shadow publish regression: after the imported InnoDB options table commits, switch it into the live WordPress options table BEFORE advancing table_index. Otherwise the destination may retain old homepage, theme, widgets and Elementor settings despite import progress reaching 100%.
+- Finalization detects and safely publishes an already imported but unpublished options stage from a recoverable interrupted restore. Never mark it successful with an unpublished options staging table.
+- Keep archive compatibility with old prefix-only v2.4.5 packages and v2.4.10 full-database packages, while retaining per-file integrity verification, recovery actions and Google Drive code.
+- Storage estimation now matches the actual WordPress-prefix backup scope.
+
+2.4.10 – Bounded database export hotfix (version intentionally unchanged):
+- Preserve all WordPress postmeta, Elementor/builder, theme and plugin tables in the full-source database archive. No tables or postmeta rows are silently excluded to bypass a backup error.
+- For tables with a single integer AUTO_INCREMENT primary key, capture an exact count and highest key in one SQL statement when each table starts. Resumable exports read only through that saved key, so rows appended during a long backup no longer trigger false missing-row errors.
+- Continue to fail closed when rows in the captured key range disappear; do not claim a consistent backup when source data cannot be safely verified. Report newly appended rows as a backup warning, since no WordPress AJAX backup can guarantee one atomic snapshot of a live changing database.
+- Keep a strict-count fallback for tables without suitable primary keys and backup jobs started before this fix; start a new backup to apply the new table-boundary logic.
+
+2.4.10 previous staging/integrity hotfix (superseded by direct-restore update above):
+- New direct, uploaded, and local restores prepare all restorable files in an isolated, opaque-name staging area, checksum-verifying contents before modifying live site files. Existing rollback/checkpoint and interrupted jobs retain their original restore flow.
+- Publish staged files with an atomic rename when possible; retain cross-filesystem verified destination-local fallback and lost-response reconciliation.
+- Resumable verification of destination file inventory checks missing or modified restored files before reporting a successful migration.
+- Keep destination wp-config/database connection and excluded host-specific files; imported WordPress account tables are activated last as before.
+- Note: Database import remains incremental, not a single atomic database/filesystem cutover. Use a hosting-level snapshot/checkpoint if you need guaranteed old-site rollback.
+
+- Restore performance: process more small files per short, durable AJAX batch; optimize large-file resume reads with optional verified seek and bounded chunks. Integrity checks, restore guards, recovery, and checkpoint behavior are unchanged.
+Maintenance and optional-logo fixes (2.4.10 hotfix, unchanged version):
+- Missing source/target branding settings no longer abort restore; logo references present in validated backup are reconciled.
+- Failed restores started without checkpoint no longer show a resume/recovery action.
+- Troubleshooting maintenance mode ON/OFF supports release of stalled Site Migrator guard and stale core .maintenance only.
+
+2.4.10 — Source-first restore: preserve imported theme-builder assignments and site logo settings; rebuild only missing conditions cache after migration. Existing resume/rollback and archive format preserved.
+2.4.21 — Verify WordPress core Site Logo during backup/restore, repair imported Elementor Site Identity logo URLs, and expose safe diagnostics and manual post-migration logo repair. Existing backup format and migration features unchanged.
+2.4.20 — Media-backed logo integrity verification and bounded, faster restoration checks.
+2.4.19 — Fix database-to-template-verification state transition that caused restore jobs to stall at 99%; safely resume previously paused finalizations and display verification stage progress.
+2.4.18 — Elementor Theme Builder conditions cache rebuild after migration, guarded against loss of header/footer assignments; added admin diagnostics and manual repair.
+2.4.17 — Preserve original page/post/category slugs and source permalink structure across domains. Verify original Elementor/theme builder template metadata and display conditions before migration is marked complete. Keep existing v2.4.16 backup, restore and login continuity functionality.
+2.4.16 — Preserve destination logins until final account-table publish; reconcile and verify source-archived site identity options; keep resumable table receipts until restore state is durable.
+2.4.15 — Verify/reconcile site title and Elementor kit options, verify header/footer template posts on cross-domain restore; remove obsolete destination-prefix tables only after full source table verification. Preserve shared database tables and legacy restore compatibility.
+2.4.14 — Verify every imported source postmeta row when WordPress adds extra runtime metadata during long restores; retain strict detection of missing or changed rows.
+2.4.13 — Validate source theme options against the exported database before destructive restore. After importing, reconcile template/stylesheet only from a verified source archive with matching restored theme files, so a fresh destination does not retain its previous default theme. Retain resume compatibility.
+2.4.12 — Import the source options table after all other database tables; reconcile only archive-verified Reading Settings on finalization after validating restored page IDs. Resumable 2.4.11 jobs can retry the 99% finalization without restarting the import. Restore guard, optional checkpoint behavior and full-database checks remain unchanged.
+2.4.11 — Full source-database table export (including non-prefixed plugin tables), manifest/table-count validation, fail-closed collision checks on shared destination databases, and verified static homepage/Reading Settings. Existing archive format retained.
+2.4.10 — Optional per-restore safety checkpoint: opt-in for uploaded/local backup restore, Direct Migration and manual checkpoint rollback. Direct mode preserves resume/integrity checks but does not provide automatic rollback. Existing pending restore/checkpoint jobs continue unchanged.
+2.4.10 — Verify active/parent theme assets and restored theme options before completion; repair Elementor generated CSS and soft-rebuild rewrite rules after restore; rewrite safe alternate HTTP/HTTPS source URLs. Existing archive format, checkpoints, Google Drive and Direct Migration maintained.
+2.4.9 — Fix missing automatic Google Drive backup WP-Cron events: recover the saved schedule safely after cron loss/restore, prevent repairs during an active restore, and record previously silent Drive-not-ready/cron registration errors. Version and other functionality unchanged.
+2.4.9 — Responsive admin UI fixes for desktop, tablet and mobile; safer modal keyboard interactions and restore selection feedback. Align Overview and Import / Export backup statuses (including In Drive) and action button heights.
+2.4.8 — Keep Google Drive account actions and OAuth results on Drive Settings; show Troubleshooting reset feedback in its own panel. Restore mobile .uwh download naming by sending local archives as binary attachments with explicit .uwh filenames. Also includes the completed safety audit: safe Google Drive filename rendering; preserve WordPress core maintenance files; close archive handles on checksum failure; protect uninstall against unsafe storage overrides/symlinks; and reduce unrelated wp-admin background scanning. All prior backup/restore, Direct Migration, Google Drive and UI features retained.
+2.4.7 — Consolidated background, restore recovery, third-party compatibility, and UI build.
+- Preserve single persistent server-backed backup progress, lost-response job reconciliation, and smaller database batches.
+- Restore UI clearly shows the selected .uwh file with filename, size, status and Remove control.
+- Retain completed Direct Migration source packages as downloadable destination backups, separate from rollback checkpoints.
+- Protect WPvivid, All-in-One and other backup plugin archives from backup/restore inventory and avoid unrelated AJAX initialization.
+- Resolve Plugin Check findings for recovery request sanitization and script enqueue; document metadata-only SHOW CREATE TABLE reads.
+- Preserve v2.4.6 recovery hardening, Google Drive, custom paths, non-InnoDB backup, and other existing functionality.
+
+United Web Host Site Migrator
+
+= 2.4.6 =
+* Add interrupted restore recovery page and safer WordPress options/upload directory continuity.
+* Keep maintenance lock in place until completion is durably recorded; handle retried completion.
+* All migration, Google Drive, backup and custom directory compatibility improvements retained.
+
+= 2.4.5 =
+* Updated release version metadata only; plugin functionality unchanged.
+
+= 2.4.1 =
+* Fixed Google Drive Connect after the safe-redirect compliance change by temporarily allowlisting only the trusted Site Migrator OAuth gateway host during authorization redirects.
+
+= 2.4.3 =
+* Fixed the final Plugin Check slow-query false positive in restored usermeta row rewriting without changing migration behavior.
+
+= 2.4.2 =
+* Fixed Direct Site-to-Site Migration restore failures caused by runtime WordPress options being recreated between resumable database restore batches.
+* Compatibility migrations now stay read-only during restore-step requests so partially restored wp_options data is not mutated between batches.
+* Source wp_options rows now safely replace duplicate runtime-created option keys during restore while normal insert behavior remains unchanged for other tables.
+* Carries forward the WordPress.org review hardening from the 2.4.1 line.
+* Scheduled-backup startup failures now stay in Site Migrator Activity Logs instead of writing a duplicate raw PHP server error log.
+* Cleaned the reported Plugin Check warning set by centralizing sanitized request reads, using safe redirects, and documenting intentional low-level database/streaming operations without changing backup, restore, Drive, or Direct Migration workflows.
+
+= 2.4.1 =
+
+* Fixed resumable Direct Site-to-Site Migration restores that could collide with live WordPress option rows between database batches; restore-step boot is now isolated from compatibility option/cron migration and source wp_options rows safely replace runtime collisions.
+* Renamed the Plugin Directory identity to United Web Host Site Migrator with the uwh-site-migrator slug while preserving legacy internal compatibility identifiers.
+* Addressed WordPress.org review findings for enqueued admin CSS, early request sanitization, nonce/capability protection, clean activation without ZipArchive, and a shorter readme description.
+* Replaced generated restore MU-plugin code with an in-plugin restore guard; current recovery no longer requires creating or editing executable PHP outside the plugin.
+* Moved encrypted Google Drive connection data and in-progress Drive transfer state to WordPress options, with one-time migration support for legacy Drive configuration.
+* Switched new-install backup storage to uploads/uwh-site-migrator while retaining automatic discovery/migration of earlier uploads/site-migrator and uploads/site-vault-migrator storage.
+* Updated dynamic database identifiers to WordPress 6.2+ %i placeholders and enforced HTTPS-only Direct Site-to-Site Migration endpoints.
+* Added explicit Site Migrator, United Web Host, and Google Privacy/Terms links to the External Services disclosure.
+* Removed the global upgrader download interception while keeping the upload prefilter and installer-side `.uwh` guidance.
+* Removed the admin hosting promotion and duplicate View details link; Plugin Website now points to https://site-migrator.unitedwebhost.com/.
+* Improved plugin ZIP upload/overwrite compatibility for hosts with aggressive ModSecurity/Imunify-style archive scanning.
+* Removed uninstall-time raw database table deletion; interrupted restore progress tables are now retained as recovery state.
+* Switched uninstall temporary filesystem deletion to WordPress' direct filesystem API with the existing strict storage-root allowlist.
+* Preserved Site Migrator settings/options, encrypted Google Drive configuration, completed local backups, restore/rollback checkpoints, and remote Drive backups exactly as before.
+
+= 2.4.0 =
+* Added a safe uninstall handler that removes runtime/log/temp state while preserving Site Migrator settings/options, encrypted Google Drive configuration, completed local backups, restore/rollback checkpoints, and remote Drive backups.
+* Removes activity logs/deduplication state, Direct Migration sessions, Site Migrator cron hooks and Drive-notice transients, exact temporary restore-progress tables, temporary job/import/Drive-transfer/direct-pull state, locks, staging database files, and the temporary restore MU-plugin loader.
+* Uses explicit allowlists and exact table-name validation instead of broad `uwhsm_*`/`svm_*` cleanup.
+* Improved PHP readability and WordPress Coding Standards alignment across core runtime classes, including clearer control flow, indentation/spacing, and safer superglobal handling without changing public identifiers or data formats.
+
+= 2.3.0 =
+* Replaced the remaining raw cURL Google Drive download implementation with `wp_safe_remote_get()` and WordPress HTTP API streaming to a temporary file, preserving large-file memory safety.
+* Removed the direct remote fopen fallback from the Drive download path.
+* Internationalized PHP admin labels, diagnostics, errors, progress messages, backup/restore/rollback status text, Drive status text, and Direct Migration messages with the `site-migrator` text domain.
+* Internationalized JavaScript UI strings through `wp.i18n`, added the `wp-i18n` script dependency, and registered script translations for all affected handles.
+* Added a translation template at `languages/site-migrator.pot`.
+* Kept `.uwh`, existing WordPress action/option identifiers, admin page slugs, the `svm1_` migration key prefix, and `X-SVM-*` wire headers unchanged.
+
+= 2.2.0 =
+* Renamed plugin-owned PHP globals/classes/constants to the UWHSM_ prefix and WordPress-owned actions, options, cron hooks, nonces, and related identifiers to uwhsm_.
+* Added a one-release compatibility layer that migrates known v2.1.x options and scheduled events and keeps legacy AJAX/admin-post/public migration route aliases for active upgrade sessions.
+* Added backward-compatible detection for unfinished legacy restore progress tables while new restore receipts use the uwhsm_progress_ prefix.
+* Preserved the .uwh backup format, plugin slug, admin page slugs, Google Drive backup filenames, and Direct Migration svm1_ key / X-SVM transport protocol.
+* Replaced readme.txt with WordPress.org Plugin Directory metadata and documentation, including External Services and Privacy sections.
+* Declared GPLv2 or later in the main plugin header and added LICENSE.txt with the GNU General Public License version 2 text.
+
+= 2.1.5 =
+- Fixed the primary admin navigation alignment after Activity Logs was hidden from the main navigation.
+- The five visible navigation tabs now occupy five equal desktop columns with no empty trailing column.
+
+= 2.1.4 =
+* Fixed stale In Drive badges caused by relying on completed local transfer-history state after a remote backup was removed.
+* Current Google Drive inventory is now authoritative for In Drive / Already in Drive UI state.
+* Drive inventory refresh resets stale sync UI before exact filename matching.
+* Completed uploads refresh and verify the remote inventory before confirming Drive presence in the local backup table.
+
+= 2.1.3 =
+* Renamed the visible Backups page/section label to Overview without changing its existing admin slug or backup behavior.
+* Removed the Quick Actions panel from Overview.
+* Removed Activity Logs from the visible WordPress submenu and Site Migrator section navigation.
+* Activity Logs remains registered as a hidden admin page and is accessible from Troubleshooting, preserving filters, export, clear controls and logged event history.
+
+= 2.1.2 =
+* Upgraded Troubleshooting into a full diagnostics center with PHP/runtime limits, required extensions, storage permissions, disk capacity, WP-Cron state, background jobs, pending restores, safety checkpoints and Google Drive status.
+* Added an overall readiness summary that distinguishes required checks from optional Google Drive availability.
+* Added downloadable plain-text diagnostic reports for support; sensitive migration keys, restore tokens, OAuth access tokens and passwords are intentionally excluded.
+* Added Activity / Backup Logs as a dedicated admin section with status/category filters, search, CSV export and clear controls.
+* Added protected logging for backup, restore, rollback, checkpoint, Drive, direct migration, background processing and automatic schedule events.
+* Activity logs retain the latest 500 events and use a capped deduplication index so repeated worker/status polling does not flood the log or the options table.
+* Added a recent-failures panel to Troubleshooting with direct navigation to filtered Activity Logs.
+
+= 2.1.1 =
+* Rebuilt the Backups page as a focused dashboard with Local Backups, Drive Backups, Local Storage Used, Last Backup, Next Automatic Backup and Google Drive status cards.
+* Added live Drive inventory totals to the dashboard and compare cloud/local timestamps so Last Backup reflects the newest completed backup visible to Site Migrator.
+* Added quick-action buttons for Create Backup, Import / Restore, Direct Migration and Drive Settings.
+* Added a compact local-backup summary and consistent Complete, Temporary, Uploading and In Drive status badges.
+* Added responsive dashboard styling while preserving the existing backup, restore, Drive and Direct Migration workflows.
+
+= 2.1.0 =
+* Added Direct Site-to-Site Migration with expiring secure keys and HTTPS-only resumable server-to-server transfer.
+* Added source metadata/package endpoints that expose only the selected completed .uwh backup and require the migration key header.
+* Source stores only a SHA-256 key hash; destination resume authorization is AES-256-GCM encrypted at rest and cleaned after migration.
+* Added WordPress/plugin-version, package-size, free-space and chunk-length preflight checks for direct migration.
+* Added automatic full-site restore checkpoints before uploaded, local, direct and manual-checkpoint restores enter destructive phases.
+* Added automatic rollback when file, database or finalize restore phases fail.
+* Rollback removes post-checkpoint WordPress files and prefixed database tables before restoring the checkpoint for a cleaner exact recovery.
+* Added Restore safety checkpoints UI with manual rollback, deletion and latest-three retention.
+* Protected source backups from deletion while an active Direct Migration key is sharing them.
+* Added resumable browser recovery for interrupted direct pulls, checkpoint creation, restores and rollback jobs.
+* Removed an unused unfinished restore commit placeholder and corrected legacy backup deletion lookup to the .uwh format.
+
+= 2.0.14 =
+* Moved the Drive inventory note and Connection recovery controls from Drive Settings to Troubleshooting.
+* Removed the Server environment card from Troubleshooting for a cleaner diagnostics page.
+* Kept the existing Google Drive reset action and security checks unchanged.
+
+= 2.0.13 =
+* Expanded Export local backup to full width on the Import / Export page.
+* Matched completed local backup actions with the Backups page: Restore, Download, Send to Drive, and Delete.
+* Added inline Drive upload progress and Already in Drive sync state to the Export local backup table.
+* Added local restore modal support on the Import / Export page while preserving the existing restore runtime.
+
+= 2.0.12 =
+* Backup files now use a clean filename such as example.com-26-jul-2026.uwh instead of time/random-ID names.
+* If another backup is created on the same day, a minimal -2, -3 suffix is added to prevent overwriting an existing backup.
+* Backup date labels now use the compact 26 jul 2026 format.
+* Added more spacing between the United Web Host promo card and the version badge so they no longer touch.
+
+= 2.0.11 =
+* Added configurable Google Drive retention for automatic backups; default is the latest 7 automatic backups.
+* When a new automatic backup finishes uploading, older automatic Drive backups are pruned one-by-one until the configured limit is met.
+* Manual Drive backups are excluded from automatic retention.
+* Added legacy recognition for older automatic Drive backups using the -auto- filename marker.
+
+= 2.0.10 =
+* Backups page now shows only the Available backups list and its local backup actions.
+* Moved the Create backup card, including background-continuation choice and Create backup & send to Drive, into Import / Export.
+* Removed the separate Background backups status section from the Backups page.
+* Send to Drive now shows live upload percentage, bytes, speed, completion, and errors inside the same local-backup row.
+* Import to Local now uses resumable chunked Drive downloads with live percentage, bytes, speed, completion, and errors inside the same Drive row.
+* Added server-side Drive import start/status/step endpoints with protected resumable state and bounded 8 MB chunks.
+
+= 2.0.9 =
+* Replaced visible "Site Vault Migrator" branding with "Site Migrator" across the plugin UI and docs.
+* Updated the default storage directory from uploads/site-vault-migrator to uploads/site-migrator.
+* Added a legacy storage-directory handoff so existing installations can continue working if an older site-vault-migrator folder already exists.
+* Updated Google Drive backup folder branding to Site Migrator Backups while still recognizing existing Site Vault Backups folders.
+
+= 2.0.8 =
+* Moved Automatic Scheduled Backup settings back into Drive Settings so scheduling and Google Drive delivery controls stay together.
+* Restored cross-page Drive/local sync detection after the v2.0.7 admin split.
+* Local backups now query the connected Drive inventory on page load and show Already in Drive with the upload button disabled when the same backup exists remotely.
+* Drive backups now use the localized local-backup inventory so Import to Local shows Already in Local and is disabled when that backup already exists on the server.
+
+= 2.0.7 =
+* Split the Site Migrator admin into four focused sections: Backups, Import / Export, Drive Settings, and Troubleshooting.
+* Moved automatic scheduling into Backups and kept Google account/cloud inventory controls in Drive Settings.
+* Added a dedicated diagnostics page for WP-Cron, server requirements, Drive connection state, and recovery shortcuts.
+* Kept the existing backup, restore, Drive upload, automatic cleanup, and latest-two failed-auto retention behavior unchanged.
+
+= 2.0.6 =
+* Stable plugin folder/basename: site-migrator/site-migrator.php for clean WordPress upgrades.
+* Restored reliable Settings action link on the Plugins screen.
+* Restored the v2.0.4 admin icon silhouette with a colorful United Web Host gradient.
+* Plugin website remains https://migrator.unitedwebhost.com/.
+2.0.5
+- Added a bootstrap-level Settings link on the WordPress Plugins screen for reliable access to Site Migrator settings.
+- Updated Plugin URI and plugin website/details links to https://migrator.unitedwebhost.com/.
+- Refreshed the admin menu icon with full-color United Web Host / Site Migrator styling.
+
+2.0.4
+- Added a direct Settings action on the WordPress Plugins screen for one-click access to Site Migrator.
+- Added United Web Host website links through the plugin and author metadata, making the author name clickable in the Plugins screen.
+- Added a View details link for Site Migrator and kept the plugin website metadata available to WordPress.
+- Replaced the generic shield admin-menu icon with a custom backup/migration SVG mark for clearer Site Migrator branding.
+
+2.0.3
+- When automatic Google Drive delivery is failed, paused, or requires reconnection, local safety retention keeps only the latest two completed automatic backups.
+- Older automatic local archives are pruned after a Drive failure so prolonged outages cannot fill hosting storage.
+- Manual backups are excluded from this safety cleanup, and currently active automatic transfers are protected from pruning.
+- Successful automatic Drive uploads still remove their local temporary copy immediately after verified completion.
+
+2.0.2
+- Automatic backup completion now hands the queued Google Drive transfer to the same server-side background worker immediately.
+- Automatic Drive uploads no longer depend on opening the Site Migrator admin page to make progress.
+- Auto-backup transfer state is explicitly marked for local cleanup and cleanup is retried after verified Drive completion.
+- Manual local backups are never removed by this automatic cleanup path.
+
+2.0.1
+- Automatic scheduled backups are Drive-only after successful upload.
+- Local automatic archives are deleted only after Google Drive confirms the complete file ID and expected size.
+- Manual backups remain local even when uploaded to Drive.
+- Failed or paused Drive transfers retain the local automatic archive for retry.
+
+1.6.1
+Fix live Google Drive resumable-session startup on WordPress hosts where HTTP
+response headers are returned as a Requests case-insensitive dictionary object.
+Read the valid Location header without weakening the HTTPS/Google host/path
+allowlist. Retain all v1.6.0 backup, restore, OAuth, idempotency and Drive
+inventory behavior. A v1.6.0 transfer stopped by this exact header bug is
+migrated to one safe retry when its status is reopened.
+
+1.6.0
+Add validated direct restore from completed local backups without browser re-upload
+or archive duplication; retain the source archive after restore and block deletion
+while it is in use. Add encrypted, idempotent Google Drive transfer state, resumable
+8 MiB uploads, browser and WP-Cron continuation, retry/reconnect handling, async
+filtered inventory with signed pagination, local Send to Drive actions, and United
+Web Host navy/emerald/mint styling. Preserve the v1.3.0+ archive format and Gateway
+v1.0.1 OAuth connection boundary. Persistent OAuth rejection pauses safely for a
+visible reconnect instead of becoming a permanent failure. Repeated Send clicks
+verify the known Drive file, requeue only after confirmed remote deletion, and
+reuse only an app-marked backup folder. Weekly schedules, retention and Drive
+restore are not included.
+
+1.5.1
+Improve Drive connection errors with a gateway Request ID and health link.
+Gateway v1.0.1 migrates earlier SQLite schema and verifies real write
+access, and fixes PHP 7.4 SQLite transaction handling while retaining
+connected accounts and private OAuth settings.
+Backup, upload, restore and background processing are unchanged.
+
+1.5.0
+Add optional Google Drive authorization gateway, connection UI and per-site
+credential isolation. Existing backup, upload, restore and download flows
+remain from v1.4.3. Gateway deployment is required for the new UI.
+
+1.4.3
+Verify website entries without staging; restore directly from archive with verified atomic replacement; persist restore errors for admin recovery.
+
+1.4.2
+Recover missing staged files with integrity verification; permit admin/login during restore; administrator-authorized saved-job resume.
+
+1.4.1
+Negotiated upload chunks; live upload throughput; adaptive extraction/copy batches; streaming SHA256 verification.
+
+1.4.0
+Optional cron backup worker, site-bound jobs, pause/resume, bounded retries, cron status.
+Shared locked batch entry point; manual backup remains the default.
+Google Drive and weekly scheduling are planned, not included.
+
+1.3.2
+- Fixed localized chunkSize string concatenation, which sent an oversized second chunk.
+- Convert chunkSize explicitly to a positive integer, cap at 4 MB, and bound the final slice.
+- Keep server chunk-size enforcement; distinguish empty/read/oversize/remaining-size errors.
+- v1.3.0 and v1.3.1 website backups remain compatible. No new backup is required for this fix.
+
+1.3.1
+- Added browser guard on Plugins > Upload Plugin for .svm.zip website backups.
+- Added server upload-name guard and pre-extraction manifest detection, including renamed backups.
+- Added link to Site Migrator Restore / Migrate instead of unpacking full websites into plugin staging.
+- Added wrong plugin-ZIP guidance to the restore file picker and server upload endpoint.
+- Existing v1.3.0 website backups remain supported. Previous backup/restore fixes retained.
+
+The guard requires Site Migrator to be active. It does not repair disk/permission errors,
+recover omitted files, or automatically restore a website through Plugin Installer.
+
+2.4.10 restore-slot hotfix (version intentionally unchanged):
+- Add nonce/capability-protected cancellation of unfinished restore and pre-restore checkpoint sessions across Direct Migration, Import/Export and Troubleshooting; actions are visible without a browser resume token.
+- Reject cancellation of actively locked restore/checkpoint batches; protect completed checkpoints and original migration packages; clear only verified incomplete checkpoint scratch data and the matching restore maintenance guard. Cancellation does not roll back a partially restored destination.
+- Reconcile dropped checkpoint AJAX replies against durable server-side backup progress, show saved progress, and retry boundedly. Smaller checkpoint-only DB row batches mitigate exhausted HTTP/PHP execution windows on larger destinations; other backup and restore batch behavior is unchanged.
+- Exclude cancelled sessions from restore-slot preflight and pending recovery; invalidate cancelled resume tokens.

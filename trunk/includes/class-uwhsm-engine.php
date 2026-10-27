@@ -67,7 +67,7 @@ final class UWHSM_Engine {
         echo '<div class="notice notice-warning"><p>' . esc_html__('Site Migrator ignored an unsafe custom backup-storage location and is using its private directory in WordPress uploads. Please update UWHSM_STORAGE_PATH (or the legacy SVM_STORAGE_PATH) to a dedicated directory; old files were not deleted.', 'uwh-site-migrator') . '</p></div>';
     }
 
-    private $batch_files = 1000;
+    private $batch_files = 1500;
     private $batch_rows = 250; // Bound DB batch memory/time on shared hosting; resumable cursor/offset stays compatible.
 
     public static function instance() {
@@ -120,7 +120,7 @@ final class UWHSM_Engine {
         $this->import_dir = $this->base . '/imports';
         $this->checkpoint_dir = $this->base . '/checkpoints';
         $this->ensure_dirs();
-        foreach (array('uwhsm_backup_start', 'uwhsm_backup_step', 'uwhsm_backup_status', 'uwhsm_upload_start', 'uwhsm_upload_chunk', 'uwhsm_restore_start', 'uwhsm_restore_local_start', 'uwhsm_restore_checkpoint_finish', 'uwhsm_restore_recover', 'uwhsm_restore_cancel', 'uwhsm_restore_step', 'uwhsm_restore_status', 'uwhsm_checkpoint_rollback_start', 'uwhsm_checkpoint_delete', 'uwhsm_delete_backup') as $action) {
+        foreach (array('uwhsm_backup_start', 'uwhsm_backup_step', 'uwhsm_backup_status', 'uwhsm_backup_cancel', 'uwhsm_upload_start', 'uwhsm_upload_chunk', 'uwhsm_restore_start', 'uwhsm_restore_local_start', 'uwhsm_restore_checkpoint_finish', 'uwhsm_restore_recover', 'uwhsm_restore_cancel', 'uwhsm_restore_step', 'uwhsm_restore_status', 'uwhsm_checkpoint_rollback_start', 'uwhsm_checkpoint_delete', 'uwhsm_delete_backup') as $action) {
             add_action('wp_ajax_' . $action, array($this, $action));
         }
 
@@ -294,21 +294,136 @@ final class UWHSM_Engine {
         }
     }
 
+
+    private function render_maintenance_screen($args = array()) {
+        $defaults = array(
+            'badge' => __('Temporary notice', 'uwh-site-migrator'),
+            'title' => __('We will be back shortly', 'uwh-site-migrator'),
+            'message' => __('This website is temporarily unavailable while maintenance is being completed. Please check back again in a little while.', 'uwh-site-migrator'),
+            'details' => '',
+            'show_login' => true,
+            'show_refresh' => true,
+            'support_text' => __('Thank you for your patience while we finish this update.', 'uwh-site-migrator'),
+            'secondary_link_url' => '',
+            'secondary_link_label' => '',
+        );
+        $args = wp_parse_args($args, $defaults);
+        $refresh_label = __('Refresh page', 'uwh-site-migrator');
+        $login_url = wp_login_url(home_url('/'));
+        $home_url = home_url('/');
+
+        ob_start();
+        ?>
+        <div class="uwhsm-maint-wrap">
+            <style>
+                html{margin:0!important;padding:0!important;max-width:none!important;width:100%!important;min-height:100%;overflow-x:hidden}
+                body#error-page,body{margin:0!important;padding:0!important;max-width:none!important;min-width:0!important;width:100%!important;min-height:100vh!important;background:#f4f7ff!important;color:#0f172a;box-shadow:none!important;border:0!important;box-sizing:border-box!important;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+                body#error-page .wp-die-message,body .wp-die-message{margin:0!important;padding:0!important;max-width:none!important;width:100%!important;border:0!important;background:transparent!important;box-shadow:none!important;box-sizing:border-box!important}
+                body#error-page .wp-die-message>p,body#error-page .wp-die-message>h1{margin:0;border:0}
+                .uwhsm-maint-wrap,.uwhsm-maint-wrap *{box-sizing:border-box}
+                .uwhsm-maint-wrap{min-height:100vh;min-height:100dvh;min-width:0;width:100%;display:flex;align-items:center;justify-content:center;padding:clamp(18px,4vw,48px);background:
+                    radial-gradient(circle at top left, rgba(99,102,241,.16), transparent 32%),
+                    radial-gradient(circle at bottom right, rgba(79,70,229,.12), transparent 30%),
+                    linear-gradient(180deg,#f8faff 0%,#f4f7ff 100%)}
+                .uwhsm-maint-card{width:100%;max-width:900px;min-width:0;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;box-shadow:0 24px 64px rgba(15,23,42,.10);overflow:hidden}
+                .uwhsm-maint-top{padding:36px 36px 22px;background:linear-gradient(135deg,#4f46e5 0%,#6366f1 55%,#818cf8 100%);color:#fff}
+                .uwhsm-maint-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.24);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+                body#error-page .uwhsm-maint-title,.uwhsm-maint-title{margin:18px 0 10px!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;text-shadow:none!important;font-size:34px;line-height:1.2;font-weight:800;color:#fff!important}
+                body#error-page .uwhsm-maint-lead,.uwhsm-maint-lead{margin:0!important;padding:0!important;font-size:16px;line-height:1.75;color:rgba(255,255,255,.92)!important;max-width:620px}
+                .uwhsm-maint-body{padding:28px 36px 34px}
+                .uwhsm-maint-panel{display:flex;gap:16px;align-items:flex-start;padding:18px 18px;border:1px solid #e8edfa;border-radius:18px;background:#f8faff}
+                .uwhsm-maint-icon{flex:0 0 50px;width:50px;height:50px;border-radius:16px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700}
+                .uwhsm-maint-text h2{margin:0 0 6px;font-size:19px;line-height:1.4;color:#172554}
+                .uwhsm-maint-text p{margin:0;color:#475569;font-size:14px;line-height:1.75}
+                .uwhsm-maint-note{margin-top:18px;padding:16px 18px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;line-height:1.7}
+                .uwhsm-maint-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+                .uwhsm-maint-btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 18px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px;transition:.18s ease;box-sizing:border-box}
+                .uwhsm-maint-btn-primary{background:#4f46e5;color:#fff;border:1px solid #4f46e5}
+                .uwhsm-maint-btn-primary:hover{background:#4338ca;color:#fff}
+                .uwhsm-maint-btn-secondary{background:#fff;color:#4338ca;border:1px solid #c7d2fe}
+                .uwhsm-maint-btn-secondary:hover{background:#eef2ff;color:#312e81}
+                .uwhsm-maint-foot{margin-top:22px;padding-top:18px;border-top:1px solid #eef2ff;color:#64748b;font-size:13px;line-height:1.75}
+                @media (max-width:640px){.uwhsm-maint-wrap{padding:16px}.uwhsm-maint-top{padding:28px 22px 22px}body#error-page .uwhsm-maint-title,.uwhsm-maint-title{font-size:28px}.uwhsm-maint-body{padding:22px 22px 24px}.uwhsm-maint-panel{flex-direction:column}.uwhsm-maint-actions{flex-direction:column}.uwhsm-maint-btn{width:100%}}
+            </style>
+            <div class="uwhsm-maint-card">
+                <div class="uwhsm-maint-top">
+                    <span class="uwhsm-maint-badge"><?php echo esc_html($args['badge']); ?></span>
+                    <h1 class="uwhsm-maint-title"><?php echo esc_html($args['title']); ?></h1>
+                    <p class="uwhsm-maint-lead"><?php echo esc_html($args['message']); ?></p>
+                </div>
+                <div class="uwhsm-maint-body">
+                    <div class="uwhsm-maint-panel">
+                        <div class="uwhsm-maint-icon" aria-hidden="true">⚙</div>
+                        <div class="uwhsm-maint-text">
+                            <h2><?php esc_html_e('We are improving the website experience', 'uwh-site-migrator'); ?></h2>
+                            <p><?php echo esc_html($args['support_text']); ?></p>
+                        </div>
+                    </div>
+                    <?php if (!empty($args['details'])) : ?>
+                        <div class="uwhsm-maint-note"><?php echo wp_kses_post($args['details']); ?></div>
+                    <?php endif; ?>
+                    <div class="uwhsm-maint-actions">
+                        <?php if (!empty($args['show_refresh'])) : ?>
+                            <a class="uwhsm-maint-btn uwhsm-maint-btn-primary" href="<?php echo esc_url($home_url); ?>" onclick="window.location.reload();return false;"><?php echo esc_html($refresh_label); ?></a>
+                        <?php endif; ?>
+                        <?php if (!empty($args['show_login'])) : ?>
+                            <a class="uwhsm-maint-btn uwhsm-maint-btn-secondary" href="<?php echo esc_url($login_url); ?>"><?php esc_html_e('Administrator sign in', 'uwh-site-migrator'); ?></a>
+                        <?php endif; ?>
+                        <?php if (!empty($args['secondary_link_url']) && !empty($args['secondary_link_label'])) : ?>
+                            <a class="uwhsm-maint-btn uwhsm-maint-btn-secondary" href="<?php echo esc_url($args['secondary_link_url']); ?>"><?php echo esc_html($args['secondary_link_label']); ?></a>
+                        <?php endif; ?>
+                    </div>
+                    <div class="uwhsm-maint-foot"><?php esc_html_e('If you are the site owner, you can sign in to review the current status or return again shortly after maintenance finishes.', 'uwh-site-migrator'); ?></div>
+                </div>
+            </div>
+        </div>
+        <?php
+        return (string) ob_get_clean();
+    }
+
+    /**
+     * Active restore protection always takes priority over manual maintenance.
+     * Outside a restore, administrators may preview the actual site while
+     * non-administrators receive the temporary maintenance page.
+     */
     public function maybe_block_frontend_during_restore() {
-        if (get_option('uwhsm_manual_maintenance', false)) {
-            status_header(503);
-            nocache_headers();
-            if (!headers_sent()) { header('Retry-After: 60'); }
-            wp_die(esc_html__('This website is temporarily in maintenance mode. Please check back shortly.', 'uwh-site-migrator'), esc_html__('Maintenance mode', 'uwh-site-migrator'), array('response' => 503));
-        }
         $guard = get_option('uwhsm_restore_guard', array());
-        if (!is_array($guard) || !$this->safe_id((string) ($guard['restore_id'] ?? ''))) {
-            return;
+        if (is_array($guard) && $this->safe_id((string) ($guard['restore_id'] ?? ''))) {
+            $state = $this->read_state((string) $guard['restore_id']);
+            if (is_array($state) && 'done' === ($state['phase'] ?? '')) {
+                // A completed restore may have lost its final AJAX response.
+                // Remove its obsolete guard before applying manual maintenance.
+                $this->clear_restore_guard();
+            } else {
+                // Never bypass an active/incomplete restore for administrators:
+                // the live files or database may be in a transitional state.
+                status_header(503);
+                nocache_headers();
+                if (!headers_sent()) {
+                    header('Retry-After: 60');
+                }
+                $show_recovery = is_array($state) && 'failed' !== ($state['phase'] ?? '')
+                    && !(isset($state['checkpoint_enabled']) && !$state['checkpoint_enabled'] && !empty($state['last_error']) && empty($state['checkpoint_name']));
+                $recovery_url = admin_url('admin-ajax.php?action=uwhsm_restore_recovery_page');
+                $details = esc_html__('Website migration is paused or still in progress. Please wait while the site is being restored safely.', 'uwh-site-migrator');
+                $details .= '<br><br>' . esc_html__('Your data is not automatically deleted. If a safety checkpoint was disabled, automatic rollback may not be available.', 'uwh-site-migrator');
+                $screen = $this->render_maintenance_screen(array(
+                    'badge' => __('Migration in progress', 'uwh-site-migrator'),
+                    'title' => __('We are restoring this website', 'uwh-site-migrator'),
+                    'message' => __('A site migration or restore is currently running. Please check back in a few minutes.', 'uwh-site-migrator'),
+                    'details' => $details,
+                    'support_text' => __('The site is temporarily protected while files and database changes are being completed.', 'uwh-site-migrator'),
+                    'secondary_link_url' => $show_recovery ? $recovery_url : '',
+                    'secondary_link_label' => $show_recovery ? __('Resume saved restore', 'uwh-site-migrator') : '',
+                ));
+                wp_die($screen, esc_html__('Site Migrator maintenance', 'uwh-site-migrator'), array('response' => 503)); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML is composed solely of escaped strings and URLs.
+                return;
+            }
         }
-        $state = $this->read_state((string) $guard['restore_id']);
-        if (is_array($state) && 'done' === ($state['phase'] ?? '')) {
-            // The previous request may have finished but lost its HTTP response.
-            $this->clear_restore_guard();
+
+        // Manual maintenance is visitor-only. Never rely on a query parameter,
+        // cookie name, or user-supplied value to grant the administrator bypass.
+        if (!get_option('uwhsm_manual_maintenance', false) || current_user_can('manage_options')) {
             return;
         }
         status_header(503);
@@ -316,15 +431,14 @@ final class UWHSM_Engine {
         if (!headers_sent()) {
             header('Retry-After: 60');
         }
-        $show_recovery = is_array($state) && 'failed' !== ($state['phase'] ?? '')
-            && !(isset($state['checkpoint_enabled']) && !$state['checkpoint_enabled'] && !empty($state['last_error']) && empty($state['checkpoint_name']));
-        $recovery_url = admin_url('admin-ajax.php?action=uwhsm_restore_recovery_page');
-        $message = '<p>' . esc_html__('Website migration is paused or in progress. Your data is not automatically deleted.', 'uwh-site-migrator') . '</p>';
-        if ($show_recovery) {
-            $message .= '<p><a href="' . esc_url($recovery_url) . '">' . esc_html__('Resume a restore saved in this browser', 'uwh-site-migrator') . '</a></p>';
-        }
-        $message .= '<p>' . esc_html__('Contact the site administrator if maintenance remains active. A disabled safety checkpoint cannot be rolled back automatically.', 'uwh-site-migrator') . '</p>';
-        wp_die($message, esc_html__('Site Migrator maintenance', 'uwh-site-migrator'), array('response' => 503)); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML is composed solely of escaped strings and URLs.
+        $screen = $this->render_maintenance_screen(array(
+            'badge' => __('Maintenance mode', 'uwh-site-migrator'),
+            'title' => __('We are making a few improvements', 'uwh-site-migrator'),
+            'message' => __('This website is temporarily in maintenance mode. Please check back shortly.', 'uwh-site-migrator'),
+            'details' => '',
+            'support_text' => __('We are working to bring the site back online as quickly as possible.', 'uwh-site-migrator'),
+        ));
+        wp_die($screen, esc_html__('Maintenance mode', 'uwh-site-migrator'), array('response' => 503)); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML is composed solely of escaped strings and URLs.
     }
 
     /** Give a signed-out administrator the same browser-local recovery path. */
@@ -1477,18 +1591,146 @@ final class UWHSM_Engine {
             'phase' => (string) ($s['phase'] ?? ''),
             'created' => (int) ($s['created'] ?? 0),
             'done' => 'done' === ($s['phase'] ?? ''),
+            'cancel_requested' => is_file($this->cancel_path((string) ($s['job'] ?? ''))),
             'progress' => (float) $metrics['progress'],
             'label' => (string) $metrics['label'],
             'background_enabled' => !empty($b['enabled']),
             'scheduled' => $scheduled,
             'last_tick' => (int) ($b['last_tick'] ?? 0),
+            'last_activity' => max((int) ($b['last_tick'] ?? 0), (int) ($b['last_foreground_batch'] ?? 0)),
             'error' => (string) ($b['error'] ?? ''),
             'delivery' => (string) ($s['delivery'] ?? 'local'),
         );
     }
 
+    /**
+     * WordPress wp_delete_file() has no reliable success return value.
+     * Confirm disk removal before telling a browser that cancellation finished.
+     * Call only for already-validated paths owned by Site Migrator.
+     */
+    private function remove_managed_backup_artifact($path, $message) {
+        if (is_link($path)) {
+            throw new RuntimeException(__('A temporary backup path is a symlink; cleanup was stopped for safety.', 'uwh-site-migrator'));
+        }
+        if (is_file($path)) {
+            wp_delete_file($path);
+            if (is_file($path) || is_link($path)) {
+                throw new RuntimeException($message);
+            }
+        }
+    }
+
+    /**
+     * Discard only a cancelled, unfinished ordinary backup. The caller must
+     * hold this job's exclusive lock. Checkpoints and complete packages are
+     * deliberately outside the scope of the Stop Backup UI.
+     */
+    private function cleanup_cancelled_backup_locked($job, array $state) {
+        if ('backup' !== ($state['type'] ?? '') || 'checkpoint' === ($state['purpose'] ?? 'backup')
+            || 'done' === ($state['phase'] ?? '') || !hash_equals((string) ($state['job'] ?? ''), (string) $job)) {
+            throw new RuntimeException(__('Only an unfinished ordinary backup can be stopped.', 'uwh-site-migrator'));
+        }
+        // Never trust state-derived arbitrary paths when deleting files.
+        $zip = (string) ($state['zip'] ?? '');
+        $name = (string) ($state['name'] ?? '');
+        if (!$this->valid_backup_name($name) || $zip !== $this->backup_dir . '/' . $name) {
+            throw new RuntimeException(__('Backup path verification failed; no files were deleted.', 'uwh-site-migrator'));
+        }
+        if (class_exists('UWHSM_Site_Transfer') && UWHSM_Site_Transfer::backup_is_shared($name)) {
+            throw new RuntimeException(__('This backup is shared by an active migration key. Revoke the key before stopping it.', 'uwh-site-migrator'));
+        }
+        $db_stage = (string) ($state['db_stage'] ?? '');
+        if ($db_stage !== '' && is_link($db_stage)) {
+            throw new RuntimeException(__('Unsafe temporary database path; no files were deleted.', 'uwh-site-migrator'));
+        }
+        if ($db_stage !== '' && $db_stage !== $this->base . '/db-' . $job) {
+            throw new RuntimeException(__('Temporary database path verification failed; no files were deleted.', 'uwh-site-migrator'));
+        }
+        if ($db_stage !== '' && is_dir($db_stage)) {
+            $this->remove_tree($db_stage);
+            if (is_dir($db_stage)) {
+                throw new RuntimeException(__('Could not remove temporary database files. Check folder permissions and retry Stop.', 'uwh-site-migrator'));
+            }
+        }
+        // Delete the incomplete archive first. The cancellation marker remains
+        // durable until the state and sidecar files are confirmed deleted.
+        $this->remove_managed_backup_artifact($zip, __('Could not remove the incomplete archive. Check permissions and retry Stop.', 'uwh-site-migrator'));
+        $this->remove_managed_backup_artifact($zip . '.json', __('Could not remove the incomplete archive metadata. Check file permissions and retry Stop.', 'uwh-site-migrator'));
+        $this->remove_managed_backup_artifact($this->state_path($job) . '.tmp', __('Could not remove the temporary backup state. Check permissions and retry Stop.', 'uwh-site-migrator'));
+        $this->remove_managed_backup_artifact($this->state_path($job), __('Could not clear the stopped backup state. Check permissions and retry Stop.', 'uwh-site-migrator'));
+        if (class_exists('UWHSM_Background')) {
+            wp_clear_scheduled_hook(UWHSM_Background::HOOK, array($job));
+        }
+        $this->remove_managed_backup_artifact($this->cancel_path($job), __('Backup files were removed but the cancellation marker could not be cleared.', 'uwh-site-migrator'));
+        UWHSM_Logger::log('backup', 'info', __('Unfinished backup cancelled by an administrator.', 'uwh-site-migrator'), array('job' => $job, 'backup' => $name));
+    }
+
+    /** Administrators can stop any unfinished ordinary backup from its progress card. */
+    public function uwhsm_backup_cancel() {
+        $this->guard();
+        $job = UWHSM_Compat::post_value('job');
+        if (!$this->safe_id($job)) {
+            $this->fail(__('Invalid backup job ID.', 'uwh-site-migrator'), 400);
+            return;
+        }
+        // Native advisory lock, identical to backup writer's lock.
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Job coordination requires a native advisory file lock.
+        $lock = @fopen($this->lock_path($job), 'c');
+        if (!$lock) {
+            $this->fail(__('Could not lock the backup job. Check storage permissions.', 'uwh-site-migrator'), 500);
+            return;
+        }
+        $locked = @flock($lock, LOCK_EX | LOCK_NB);
+        try {
+            $state = $this->background_state($job);
+            if (!$state) {
+                wp_send_json_success(array('cancelled' => true, 'pending' => false, 'message' => __('Backup already stopped or removed.', 'uwh-site-migrator')));
+                return;
+            }
+            if ('checkpoint' === ($state['purpose'] ?? 'backup')) {
+                $this->fail(__('A restore safety checkpoint cannot be stopped using Stop Backup.', 'uwh-site-migrator'), 409);
+                return;
+            }
+            if ('done' === ($state['phase'] ?? '')) {
+                wp_delete_file($this->cancel_path($job));
+                $this->fail(__('Backup already completed. The completed package has been preserved.', 'uwh-site-migrator'), 409);
+                return;
+            }
+            if (false === @file_put_contents($this->cancel_path($job), '1', LOCK_EX)) {
+                $this->fail(__('Could not save the stop request. Check storage permissions.', 'uwh-site-migrator'), 500);
+                return;
+            }
+            if (class_exists('UWHSM_Background')) {
+                wp_clear_scheduled_hook(UWHSM_Background::HOOK, array($job));
+            }
+            if (!$locked) {
+                wp_send_json_success(array('cancelled' => false, 'pending' => true, 'message' => __('Stopping safely after the current backup batch. Temporary data will be removed.', 'uwh-site-migrator')));
+                return;
+            }
+            // Re-read while locked; another request might have just finished.
+            $fresh = $this->background_state($job);
+            if ($fresh && 'done' === ($fresh['phase'] ?? '')) {
+                wp_delete_file($this->cancel_path($job));
+                $this->fail(__('Backup completed before cancellation. The completed package was preserved.', 'uwh-site-migrator'), 409);
+                return;
+            }
+            if ($fresh) {
+                $this->cleanup_cancelled_backup_locked($job, $fresh);
+            }
+            wp_send_json_success(array('cancelled' => true, 'pending' => false, 'message' => __('Backup stopped. Incomplete archive and temporary database files removed.', 'uwh-site-migrator')));
+        } catch (Throwable $e) {
+            $this->fail($e->getMessage(), 500);
+        } finally {
+            if ($locked) {
+                @flock($lock, LOCK_UN);
+            }
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native advisory file-lock cleanup.
+            @fclose($lock);
+        }
+    }
+
     // Shared by authenticated AJAX and the locally scheduled background worker.
-    public function run_backup_batch($job) {
+    public function run_backup_batch($job, $initiator = 'foreground') {
         if (!$this->safe_id($job) || !($s = $this->read_state($job)) || 'backup' !== ($s['type'] ?? '')) {
             throw new RuntimeException(esc_html__('Backup job was not found or expired.', 'uwh-site-migrator'));
         }
@@ -1504,15 +1746,19 @@ final class UWHSM_Engine {
             $metrics = $this->backup_metrics($s);
             // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
             @fclose($lock);
-            return array('job' => $job, 'done' => false, 'progress' => $metrics['progress'], 'label' => __('Previous backup batch is still finishing…', 'uwh-site-migrator'), 'warnings' => count($s['warnings'] ?? array()), 'busy' => true);
+            return array('job' => $job, 'done' => false, 'progress' => $metrics['progress'], 'label' => $metrics['label'], 'warnings' => count($s['warnings'] ?? array()), 'busy' => true, 'cancel_requested' => is_file($this->cancel_path($job)));
         }
         try {
             $s = $this->read_state($job);
             if (!$s) {
                 throw new RuntimeException(__('Backup job was removed.', 'uwh-site-migrator'));
             }
-            if (is_file($this->cancel_path($job))) {
-                throw new RuntimeException(__('Deletion requested. Retry Delete temporary to finish cleanup.', 'uwh-site-migrator'));
+            if (is_file($this->cancel_path($job)) && 'done' !== ($s['phase'] ?? '')) {
+                $this->cleanup_cancelled_backup_locked($job, $s);
+                @flock($lock, LOCK_UN);
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native backup lock.
+                @fclose($lock);
+                return array('job' => $job, 'cancelled' => true, 'done' => false, 'progress' => 0, 'label' => __('Backup stopped', 'uwh-site-migrator'));
             }
             if ('files' === $s['phase']) {
                 $this->backup_files($s);
@@ -1521,21 +1767,24 @@ final class UWHSM_Engine {
             } elseif ('finalize' === $s['phase']) {
                 $this->backup_finalize($s);
             } elseif ('done' === $s['phase']) {
+                // Completion won the cancellation race. Preserve the archive.
+                wp_delete_file($this->cancel_path($job));
                 /* Idempotent completion after a lost response. */
             } else {
                 throw new RuntimeException(__('Invalid backup state.', 'uwh-site-migrator'));
             }
-            if (is_file($this->cancel_path($job))) {
-                if (!empty($s['zip'])) {
-                    wp_delete_file($s['zip']);
-                }
-                if (!empty($s['db_stage'])) {
-                    $this->remove_tree($s['db_stage']);
-                }
-                wp_delete_file($s['zip'] . '.json');
-                wp_delete_file($this->state_path($job));
-                wp_delete_file($this->cancel_path($job));
-                throw new RuntimeException(__('Backup was cancelled and its temporary files were removed.', 'uwh-site-migrator'));
+            if (is_file($this->cancel_path($job)) && 'done' !== ($s['phase'] ?? '')) {
+                $this->cleanup_cancelled_backup_locked($job, $s);
+                @flock($lock, LOCK_UN);
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native backup lock.
+                @fclose($lock);
+                return array('job' => $job, 'cancelled' => true, 'done' => false, 'progress' => 0, 'label' => __('Backup stopped', 'uwh-site-migrator'));
+            }
+            // When the browser is actively processing, cron should not compete
+            // for the same ZIP lock. The short-lived heartbeat is a hint only;
+            // cron automatically takes over if the browser stops making progress.
+            if ('foreground' === $initiator && !empty($s['background']['enabled'])) {
+                $s['background']['last_foreground_batch'] = time();
             }
             $this->write_state($job, $s);
             if ('done' === ($s['phase'] ?? '')) {
@@ -1695,16 +1944,55 @@ final class UWHSM_Engine {
         return $zip;
     }
 
+    /**
+     * Bound the amount of file data queued into a ZIP per request. ZIP close()
+     * can be the expensive part on shared hosting, so use its measured cost to
+     * choose a batch. Keep even the slow-host tiers useful, but reserve time to
+     * flush the ZIP before restrictive web/proxy timeouts.
+     *
+     * @return array{bytes:int,files:int,work_seconds:float}
+     */
+    private function backup_file_batch_limits($close_seconds) {
+        $close_seconds = max(0.0, (float) $close_seconds);
+        $mb = 1024 * 1024;
+        if ($close_seconds <= 0.0) {
+            return array('bytes' => 128 * $mb, 'files' => 1000, 'work_seconds' => 5.0);
+        }
+        if ($close_seconds <= 1.5) {
+            return array('bytes' => 192 * $mb, 'files' => 1500, 'work_seconds' => 5.0);
+        }
+        if ($close_seconds <= 3.0) {
+            return array('bytes' => 160 * $mb, 'files' => 1100, 'work_seconds' => 5.0);
+        }
+        if ($close_seconds <= 5.0) {
+            return array('bytes' => 96 * $mb, 'files' => 650, 'work_seconds' => 4.5);
+        }
+        if ($close_seconds <= 8.0) {
+            // Was 32 MB / 200 files for all closes above 5 s. This is a
+            // larger, bounded tier without removing the request time guard.
+            return array('bytes' => 64 * $mb, 'files' => 400, 'work_seconds' => 3.0);
+        }
+        // Very slow storage: do not blindly scale the archive batch upward.
+        // Still larger than the old 32 MB / 200-file slow-host tier.
+        return array('bytes' => 48 * $mb, 'files' => 300, 'work_seconds' => 2.0);
+    }
+
     private function backup_files(array &$s) {
         $zip = $this->open_zip($s['zip']);
         $started = microtime(true);
-        $limit = 128*1024*1024;
+        // Adjust each batch using the previous ZIP close time. Small-file
+        // batches on slower hosts are larger than before, while the shorter
+        // work budget leaves room for expensive ZIP close() operations.
+        $limits = $this->backup_file_batch_limits($s['zip_close_seconds'] ?? 0);
+        $limit = $limits['bytes'];
+        $batch_files = $limits['files'];
+        $work_seconds = $limits['work_seconds'];
         $batch_bytes = 0;
         $handled = 0;
         $count = count($s['files']);
-        for ($i = $s['file_index']; $i < $count && $handled < $this->batch_files; $i++) {
+        for ($i = $s['file_index']; $i < $count && $handled < $batch_files; $i++) {
             $f = $s['files'][$i];
-            if ($handled > 0 && ($batch_bytes+(int) $f['size'] > $limit || microtime(true)-$started > 7)) {
+            if ($handled > 0 && ($batch_bytes+(int) $f['size'] > $limit || microtime(true)-$started > $work_seconds)) {
                 break;
             }
             if ($this->is_ephemeral_file($f['rel'])) {
@@ -1741,7 +2029,7 @@ final class UWHSM_Engine {
             $s['inventory']['site/' . $f['rel']] = array('size' => (int) filesize($f['path']), 'sha256' => $digest);
             $ext = strtolower(pathinfo($f['rel'], PATHINFO_EXTENSION));
             if (method_exists($zip, 'setCompressionName')) {
-                if (in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'mp4', 'mov', 'avi', 'mkv', 'mp3', 'wav', 'zip', 'gz', 'rar', '7z', 'pdf', 'woff', 'woff2'), true)) {
+                if (in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic', 'heif', 'jxl', 'svgz', 'mp4', 'm4v', 'mov', 'avi', 'mkv', 'webm', 'ogv', '3gp', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'zip', 'gz', 'tgz', 'bz2', 'xz', 'zst', 'rar', '7z', 'pdf', 'woff', 'woff2'), true)) {
                     @$zip->setCompressionName('site/' . $f['rel'], ZipArchive::CM_STORE);
                 } else {
                     // Faster compression for text/code without changing the .uwh ZIP format.
@@ -1754,9 +2042,11 @@ final class UWHSM_Engine {
             $s['done_units']++;
             $s['file_index'] = $i+1;
         }
+        $close_started = microtime(true);
         if (!$zip->close()) {
             throw new RuntimeException(esc_html__('Could not finish writing ZIP. Check free disk space and hosting limits.', 'uwh-site-migrator'));
         }
+        $s['zip_close_seconds'] = round(microtime(true) - $close_started, 3);
         if ($s['file_index'] >= count($s['files'])) {
             unset($s['files']);
             $s['phase'] = 'database';
@@ -1797,9 +2087,72 @@ final class UWHSM_Engine {
         return $schema;
     }
 
+    /**
+     * Tune normal database-backup queries without changing the archived rows
+     * format, the keyset cursor, or the resumable byte offset. Keep checkpoint
+     * batches small, as they may run immediately before a destructive restore.
+     *
+     * A high row-count alone is not a safe target: wp_postmeta and Elementor
+     * tables can contain multi-megabyte values. The last committed batch's
+     * average serialized size caps the next SELECT before rows enter memory.
+     */
+    private function backup_database_batch_rows(array $s) {
+        if ('checkpoint' === ($s['purpose'] ?? '')) {
+            return min($this->batch_rows, 100);
+        }
+        $rows = isset($s['db_batch_rows']) ? (int) $s['db_batch_rows'] : 450;
+        $rows = max(1, min(1600, $rows));
+        $target_bytes = 8 * 1024 * 1024;
+        // On small-memory shared hosting, keep the first unseen table at its
+        // previous 250-row limit; expand only after measuring real row sizes.
+        $memory_limit = (string) ini_get('memory_limit');
+        if (preg_match('/^([0-9]+)\s*([KMG])?$/i', $memory_limit, $memory_match)) {
+            $factor = array('K' => 1024, 'M' => 1048576, 'G' => 1073741824);
+            $unit = strtoupper($memory_match[2] ?? '');
+            $maximum = (float) $memory_match[1] * ($factor[$unit] ?? 1);
+            $remaining = max(0, $maximum - memory_get_usage(true));
+            if (!isset($s['db_batch_rows']) && $remaining < 96 * 1024 * 1024) {
+                $rows = min($rows, 250);
+            }
+            $target_bytes = min($target_bytes, max(256 * 1024, (int) floor($remaining / 6)));
+        }
+        $average = (int) ($s['db_average_row_bytes'] ?? 0);
+        if ($average > 0) {
+            // Estimate the next SELECT payload before rows enter PHP memory.
+            $rows = min($rows, max(1, (int) floor($target_bytes / $average)));
+        }
+        return $rows;
+    }
+
+    /** Save a conservative row limit for the next request, after commit. */
+    private function tune_database_backup_batch(array &$s, $rows, $bytes, $seconds) {
+        if ('checkpoint' === ($s['purpose'] ?? '') || $rows < 1) {
+            return;
+        }
+        $rows = (int) $rows;
+        $bytes = max(0, (int) $bytes);
+        $seconds = max(0.0, (float) $seconds);
+        $previous = isset($s['db_batch_rows']) ? (int) $s['db_batch_rows'] : 450;
+        // Smooth large variance between Elementor metadata and ordinary rows.
+        $sample = (int) ceil($bytes / $rows);
+        $old = max(0, (int) ($s['db_average_row_bytes'] ?? 0));
+        $s['db_average_row_bytes'] = $old > 0 ? (int) ceil($old * 0.35 + $sample * 0.65) : $sample;
+        if ($seconds > 4.0 || $bytes > 10 * 1024 * 1024) {
+            $next = (int) floor($previous * 0.65);
+        } elseif ($seconds < 0.85 && $bytes < 5 * 1024 * 1024) {
+            $next = (int) ceil($previous * 1.65);
+        } elseif ($seconds < 2.0 && $bytes < 8 * 1024 * 1024) {
+            $next = (int) ceil($previous * 1.30);
+        } else {
+            $next = $previous;
+        }
+        $s['db_batch_rows'] = max(1, min(1600, $next));
+    }
+
     private function backup_database(array &$s) {
         global $wpdb;
-        $batch_rows = ($s['purpose'] ?? '') === 'checkpoint' ? min($this->batch_rows, 100) : $this->batch_rows;
+        $batch_rows = $this->backup_database_batch_rows($s);
+        $batch_started = microtime(true);
         if ($s['table_index'] >= count($s['tables'])) {
             $s['phase'] = 'finalize';
             return;
@@ -1836,7 +2189,7 @@ final class UWHSM_Engine {
             }
         } else {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct table access is required for exact backup/restore/uninstall state; object caching would be stale or inappropriate for this operation.
-            $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i LIMIT %d OFFSET %d', $table, $this->batch_rows, (int) $s['row_offset']), ARRAY_A);
+            $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i LIMIT %d OFFSET %d', $table, $batch_rows, (int) $s['row_offset']), ARRAY_A);
         }
         if ($wpdb->last_error) {
             throw new RuntimeException(esc_html__('Database export failed: ', 'uwh-site-migrator') . esc_html($wpdb->last_error));
@@ -1867,6 +2220,9 @@ final class UWHSM_Engine {
             $s['rows_bytes'] = $offset+$written;
             $s['row_offset'] += count($rows);
             $s['rows_done'] += count($rows);
+            // Persist tuning only after the exact bytes and cursor are committed,
+            // so a retry always sees the original saved offset and row boundary.
+            $this->tune_database_backup_batch($s, count($rows), $written, microtime(true) - $batch_started);
             if (!empty($s['table_pk'])) {
                 $last_row = end($rows);
                 $s['last_pk_b64'] = base64_encode(serialize($last_row[$s['table_pk']]));
@@ -1878,7 +2234,7 @@ final class UWHSM_Engine {
             $s['table_index']++;
             $s['row_offset'] = 0;
             $s['done_units'] += 3;
-            unset($s['table_pk'], $s['last_pk_b64'], $s['rows_bytes'], $s['table_expected_rows'], $s['table_snapshot_max']);
+            unset($s['table_pk'], $s['last_pk_b64'], $s['rows_bytes'], $s['table_expected_rows'], $s['table_snapshot_max'], $s['db_batch_rows'], $s['db_average_row_bytes']);
         }
     }
 
@@ -6229,10 +6585,21 @@ final class UWHSM_Engine {
                     $this->fail(__('Temporary files could not be removed. Check file ownership and permissions.', 'uwh-site-migrator'), 500);
                 }
             }
-            wp_delete_file($state_file);
-            wp_delete_file($state_file . '.tmp');
+            try {
+                $this->remove_managed_backup_artifact($state_file . '.tmp', __('Temporary backup state could not be deleted.', 'uwh-site-migrator'));
+                $this->remove_managed_backup_artifact($state_file, __('Backup state could not be deleted. Check permissions and retry.', 'uwh-site-migrator'));
+                if ($this->safe_id($job)) {
+                    $this->remove_managed_backup_artifact($this->cancel_path($job), __('Backup cancellation marker could not be removed.', 'uwh-site-migrator'));
+                }
+            } catch (Throwable $e) {
+                if ($lock) {
+                    @flock($lock, LOCK_UN);
+                    @fclose($lock); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native job lock.
+                }
+                $this->fail($e->getMessage(), 500);
+                return;
+            }
             if ($this->safe_id($job)) {
-                wp_delete_file($this->cancel_path($job));
                 if ($lock) {
                     @flock($lock, LOCK_UN);
                     // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
@@ -6243,11 +6610,14 @@ final class UWHSM_Engine {
             $cancelled++;
         }
         $target = $path?:$this->backup_dir . '/' . $name;
-        if (!$pending && is_file($target) && !wp_delete_file($target)) {
-            $this->fail(__('The backup exists but could not be deleted. Check file ownership/permissions.', 'uwh-site-migrator'), 500);
-        }
         if (!$pending) {
-            wp_delete_file($target . '.json');
+            try {
+                $this->remove_managed_backup_artifact($target, __('The backup exists but could not be deleted. Check file ownership/permissions.', 'uwh-site-migrator'));
+                $this->remove_managed_backup_artifact($target . '.json', __('Backup metadata could not be removed. Check permissions and retry.', 'uwh-site-migrator'));
+            } catch (Throwable $e) {
+                $this->fail($e->getMessage(), 500);
+                return;
+            }
         }
         UWHSM_Logger::log('backup', 'info', $pending ? __('Backup deletion is waiting for a running job.', 'uwh-site-migrator') : __('Backup deleted.', 'uwh-site-migrator'), array('backup' => $name, 'message' => $pending ? __('Deletion pending', 'uwh-site-migrator') : __('Deleted', 'uwh-site-migrator')));
         wp_send_json_success(array('removed' => !$pending, 'pending' => (bool) $pending, 'cancelled_jobs' => $cancelled, 'already_missing' => !$path && !$pending));

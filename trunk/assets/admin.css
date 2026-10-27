@@ -297,3 +297,79 @@
 .svm-pending-restores > p { margin: 7px 0 12px; line-height: 1.55; }
 .svm-pending-restore-item { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid #f4e5c7; }
 .svm-pending-restore-item .button { white-space: normal; height: auto; min-height: 32px; }
+
+
+/* Maintenance control: scoped styling, no changes to restore handlers. */
+.svm-wrap #uwhsm-maintenance{margin:22px 0 24px;padding:0;overflow:hidden;border-color:#dce3f0;box-shadow:0 12px 32px rgba(15,23,42,.055)}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px 24px;padding:26px 28px 22px;background:linear-gradient(110deg,#f8faff 0%,#f8fafc 72%,#f2f5ff 100%);border-bottom:1px solid #e8edfa}
+.svm-wrap #uwhsm-maintenance .svm-card-head{margin:0;flex:1 1 350px;min-width:0}
+.svm-wrap #uwhsm-maintenance .svm-card-head>.dashicons{flex:0 0 48px;width:48px;height:48px;line-height:48px;font-size:25px;border-radius:13px;background:#eae9ff;color:#4f46e5}
+.svm-wrap #uwhsm-maintenance .svm-card-head h2{font-size:22px;line-height:1.3;margin:5px 0 5px;color:#172554}
+.svm-wrap #uwhsm-maintenance .svm-card-head p{font-size:13px;line-height:1.6;margin:0;color:#64748b}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-eyebrow{display:block;color:#6366f1;letter-spacing:.105em;font-size:10px;font-weight:800}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-overall{display:inline-flex;align-items:center;gap:9px;padding:10px 14px;min-height:36px;box-sizing:border-box;border:1px solid #a7f3d0;border-radius:999px;background:#ecfdf5;color:#047857;font-size:12px;font-weight:750;white-space:normal;line-height:1.35}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-overall.is-active{border-color:#fed7aa;background:#fff7ed;color:#9a3412}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-dot{display:inline-block;flex:0 0 8px;width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.12)}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-overall.is-active .svm-maintenance-dot{background:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.13)}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-feedback{display:flex;align-items:flex-start;gap:9px;margin:20px 28px 0;padding:12px 14px;border:1px solid #a7f3d0;border-radius:10px;background:#ecfdf5;color:#065f46;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-feedback.is-error{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-feedback>.dashicons{flex:0 0 20px;font-size:20px;line-height:20px}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0;padding:24px 28px 28px;align-items:stretch}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-action-panel{box-sizing:border-box;display:flex;flex-direction:column;min-width:0;min-height:230px;margin:0;padding:19px 20px 20px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-action-panel.svm-maintenance-release{background:#f8faff;border-color:#c7d2fe}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-action-heading{display:flex;align-items:center;gap:9px;font-size:14px;color:#0f172a;line-height:1.45}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-action-heading>.dashicons{flex:0 0 20px;width:20px;height:20px;font-size:20px;line-height:20px;color:#6366f1}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-action-panel>p{font-size:12px;line-height:1.6;color:#64748b;margin:9px 0 13px}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-ack{display:flex;align-items:flex-start;gap:9px;margin:0 0 14px;padding:10px 11px;background:#fff;border:1px solid #dbe3f2;border-radius:9px;cursor:pointer;color:#334155;font-size:12px;line-height:1.55}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-ack input{flex:0 0 auto;margin:2px 0 0}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-ack span{min-width:0}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-ack:focus-within{outline:2px solid #818cf8;outline-offset:2px}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-action-bottom{display:flex;align-items:end;margin-top:auto}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:44px;height:auto;margin:0;padding:10px 14px;border-radius:9px;line-height:1.35;font-weight:700;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-button:not(.button-primary){background:#fff;border-color:#c7d2fe;color:#4338ca}
+.svm-wrap #uwhsm-maintenance .svm-maintenance-button:not(.button-primary):not(:disabled):hover{border-color:#6366f1;background:#eef2ff;color:#312e81}
+@media(max-width:680px){
+ .svm-wrap #uwhsm-maintenance .svm-maintenance-heading{padding:21px 19px 19px}
+ .svm-wrap #uwhsm-maintenance .svm-maintenance-actions{grid-template-columns:minmax(0,1fr);padding:19px 19px 20px}
+ .svm-wrap #uwhsm-maintenance .svm-maintenance-action-panel{min-height:0}
+ .svm-wrap #uwhsm-maintenance .svm-maintenance-action-bottom{margin-top:12px}
+ .svm-wrap #uwhsm-maintenance .svm-maintenance-button{min-height:44px}
+}
+
+/* Troubleshooting layout: compact Drive reset inside Storage & recovery;
+   Recent failures takes the former empty space beside Automation & WP-Cron. */
+.svm-wrap .svm-diagnostics-grid-wide>.svm-diagnostics-automation{grid-column:auto}
+.svm-wrap .svm-diagnostics-automation .svm-diagnostic-list{display:block}
+.svm-wrap .svm-storage-drive-reset{margin-top:20px;padding:17px 18px 18px;border:1px solid #e0e7ff;border-radius:13px;background:#f8faff;min-width:0}
+.svm-wrap .svm-storage-drive-reset h3{font-size:15px;margin:0 0 11px;color:#1e293b}
+.svm-wrap .svm-storage-drive-reset .svm-note{margin:10px 0 14px}
+.svm-wrap .svm-storage-drive-reset form{margin:0}
+.svm-wrap .svm-storage-drive-reset .button{min-height:36px;white-space:normal;height:auto;padding:6px 13px;line-height:1.35}
+@media(max-width:800px){
+ .svm-wrap .svm-diagnostics-grid-wide>.svm-diagnostics-automation{grid-column:auto}
+}
+@media(max-width:520px){
+ .svm-wrap .svm-storage-drive-reset{padding:15px 14px}
+ .svm-wrap .svm-storage-drive-reset .button{width:100%}
+}
+
+/* Active backup cancellation: safely aligned in the persistent status card. */
+.svm-wrap .svm-backup-monitor-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+.svm-wrap .svm-backup-monitor-actions .svm-backup-stop{border-color:#fecaca;color:#b91c1c;background:#fff}
+.svm-wrap .svm-backup-monitor-actions .svm-backup-stop:not(:disabled):hover{border-color:#f87171;color:#991b1b;background:#fef2f2}
+@media(max-width:520px){.svm-wrap .svm-backup-monitor-actions{width:100%;justify-content:stretch}.svm-wrap .svm-backup-monitor-actions>*{flex:1 1 130px;text-align:center}}
+
+/* Animate the backup progress icon only while a worker is genuinely active.
+   Paused, cancelled and completed jobs remain still. */
+.svm-wrap .svm-backup-monitor.is-running .svm-backup-monitor-top .dashicons-update{
+  display:inline-block;animation:uwhsm-backup-rotation 1.25s linear infinite;transform-origin:center;
+}
+@keyframes uwhsm-backup-rotation{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+  .svm-wrap .svm-backup-monitor.is-running .svm-backup-monitor-top .dashicons-update{animation:none}
+}
+
+/* Backup actions remain visible for running AND paused unfinished jobs. */
+.svm-wrap .svm-backup-monitor-actions .svm-backup-resume{border-color:#c7d2fe;color:#4338ca;background:#fff}
+.svm-wrap .svm-backup-monitor-actions .svm-backup-resume:not(:disabled):hover{background:#eef2ff;border-color:#818cf8}
+.svm-wrap .svm-backup-monitor-actions .svm-backup-stop{font-weight:600}

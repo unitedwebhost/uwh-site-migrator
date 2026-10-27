@@ -11,11 +11,84 @@ final class UWHSM_Background {
         add_action(self::HOOK, array(__CLASS__, 'tick'));
         add_action('wp_ajax_uwhsm_background_configure', array(__CLASS__, 'configure'));
         add_action('admin_init', array(__CLASS__, 'upgrade_intervals'));
+        // Repair missing worker events even when the browser tab is closed.
+        // Runs only for an indexed, enabled backup and at most once per minute.
+        add_action('init', array(__CLASS__, 'watchdog'), 100);
     }
 
     public static function intervals($schedules) {
         $schedules['uwhsm_minute'] = array('interval' => 30, 'display' => __('Site Migrator background cycle', 'uwh-site-migrator'));
         return $schedules;
+    }
+
+    /**
+     * Keep a small index so ordinary site visits do not scan the entire backup
+     * directory. Only administrator-authorized, enabled background jobs enter it.
+     */
+    private static function remember_job($job, $enabled) {
+        $jobs = get_option('uwhsm_background_watch_jobs', array());
+        if (!is_array($jobs)) {
+            $jobs = array();
+        }
+        if ($enabled) {
+            $jobs[$job] = time();
+        } else {
+            unset($jobs[$job]);
+        }
+        if (count($jobs) > 20) {
+            asort($jobs, SORT_NUMERIC);
+            $jobs = array_slice($jobs, -20, null, true);
+        }
+        // No backup secrets or authorization keys are stored in this index.
+        update_option('uwhsm_background_watch_jobs', $jobs, false);
+    }
+
+    /** Keep the existing per-job event; do not start a second ZIP writer. */
+    private static function ensure_event($job) {
+        $args = array($job);
+        $event = wp_get_scheduled_event(self::HOOK, $args);
+        if ($event && (int) ($event->interval ?? 0) === 30) {
+            return true;
+        }
+        if ($event) {
+            wp_clear_scheduled_hook(self::HOOK, $args);
+        }
+        $ok = wp_schedule_event(time() + 1, 'uwhsm_minute', self::HOOK, $args, true);
+        return !is_wp_error($ok) && (bool) $ok;
+    }
+
+    /**
+     * WP-Cron depends on HTTP traffic unless hosting configures a real cron.
+     * This repairs lost schedules after a visit, without running backup batches
+     * in frontend requests or bypassing the engine's exclusive backup lock.
+     */
+    public static function watchdog() {
+        if (is_multisite() || wp_doing_ajax() || (function_exists('wp_doing_cron') && wp_doing_cron())) {
+            return;
+        }
+        // Avoid modifying wp_options while a destructive restore is active.
+        if (get_option('uwhsm_restore_guard', false)) {
+            return;
+        }
+        $jobs = get_option('uwhsm_background_watch_jobs', array());
+        if (!is_array($jobs) || !$jobs || false !== get_transient('uwhsm_background_watchdog')) {
+            return;
+        }
+        set_transient('uwhsm_background_watchdog', 1, 60);
+        $engine = UWHSM_Engine::instance();
+        foreach ($jobs as $job => $saved) {
+            $state = $engine->background_state((string) $job);
+            $b = $state['background'] ?? array();
+            if (!$state || empty($b['enabled']) || !hash_equals(self::binding((string) $job), (string) ($b['binding'] ?? ''))) {
+                wp_clear_scheduled_hook(self::HOOK, array((string) $job));
+                unset($jobs[$job]);
+                continue;
+            }
+            if (!self::ensure_event((string) $job)) {
+                UWHSM_Logger::log_once('bg-event-missing-' . $job, 'schedule', 'warning', __('Could not recover the background backup cron schedule. Check server cron configuration.', 'uwh-site-migrator'), array('job' => $job), 3600);
+            }
+        }
+        update_option('uwhsm_background_watch_jobs', $jobs, false);
     }
 
     /** Existing v2.4.6 recurring events remember their original 60-second interval. */
@@ -33,10 +106,10 @@ final class UWHSM_Background {
             if (empty($b['enabled']) || !hash_equals(self::binding($j['job']), (string) ($b['binding'] ?? ''))) {
                 continue;
             }
-            $event = wp_get_scheduled_event(self::HOOK, array($j['job']));
-            if ($event && (int) ($event->interval ?? 0) > 30) {
-                wp_clear_scheduled_hook(self::HOOK, array($j['job']));
-                wp_schedule_event(time() + 1, 'uwhsm_minute', self::HOOK, array($j['job']));
+            // Also recover enabled jobs created before the watchdog index existed.
+            self::remember_job($j['job'], true);
+            if (!self::ensure_event($j['job'])) {
+                UWHSM_Logger::log_once('bg-schedule-failed-' . $j['job'], 'schedule', 'warning', __('Unable to schedule unattended backup. Configure hosting WP-Cron.', 'uwh-site-migrator'), array('job' => $j['job']), 3600);
             }
         }
     }
@@ -47,6 +120,7 @@ final class UWHSM_Background {
 
     public static function deactivate() {
         wp_unschedule_hook(self::HOOK);
+        delete_option('uwhsm_background_watch_jobs');
         foreach (UWHSM_Engine::instance()->background_jobs() as $j) {
             $b = $j['background'];
             $b['enabled'] = false;
@@ -88,17 +162,17 @@ final class UWHSM_Background {
         $engine->background_update($job, $b);
         if (!$enabled) {
             wp_clear_scheduled_hook(self::HOOK, array($job));
+            self::remember_job($job, false);
             return;
         }
-        if (!wp_next_scheduled(self::HOOK, array($job))) {
-            $ok = wp_schedule_event(time()+1, 'uwhsm_minute', self::HOOK, array($job), true);
-            if (is_wp_error($ok) || !$ok) {
-                $b['enabled'] = false;
-                $b['error'] = __('Could not schedule background processing.', 'uwh-site-migrator');
-                $engine->background_update($job, $b);
-                throw new RuntimeException(esc_html($b['error']) . esc_html__(' Manual backup remains available.', 'uwh-site-migrator'));
-            }
+        if (!self::ensure_event($job)) {
+            $b['enabled'] = false;
+            $b['error'] = __('Could not schedule background processing.', 'uwh-site-migrator');
+            $engine->background_update($job, $b);
+            self::remember_job($job, false);
+            throw new RuntimeException(esc_html($b['error']) . esc_html__(' Manual backup remains available.', 'uwh-site-migrator'));
         }
+        self::remember_job($job, true);
         // Kick off the first cycle while the admin session is still available.
         // When WP-Cron is disabled, the configured real server cron remains responsible.
         if (function_exists('spawn_cron') && !(defined('DISABLE_WP_CRON') && DISABLE_WP_CRON)) {
@@ -152,9 +226,16 @@ final class UWHSM_Background {
             $b = $s['background'] ?? array();
             if (!$s || empty($b['enabled']) || !hash_equals(self::binding($job), (string) ($b['binding'] ?? ''))) {
                 wp_clear_scheduled_hook(self::HOOK, array($job));
+                self::remember_job($job, false);
                 return;
             }
             if (is_multisite() || time() < ($b['retry_at'] ?? 0)) {
+                return;
+            }
+            // Prefer a healthy browser runner when the admin tab is open.
+            // If it stops, the heartbeat expires and cron resumes unattended
+            // backups without losing any saved archive/database progress.
+            if ('done' !== ($s['phase'] ?? '') && time() - (int) ($b['last_foreground_batch'] ?? 0) < 15) {
                 return;
             }
             $next = $b;
@@ -163,7 +244,7 @@ final class UWHSM_Background {
                 if ('done' === ($s['phase'] ?? '')) {
                     self::apply_drive_result($next, self::continue_auto_drive($s));
                 } else {
-                    $result = $engine->run_backup_batch($job);
+                    $result = $engine->run_backup_batch($job, 'cron');
                     if (!empty($result['busy'])) {
                         return;
                     }
@@ -181,7 +262,9 @@ final class UWHSM_Background {
                 $next['error'] = $e->getMessage();
                 UWHSM_Logger::log_once('background-error-' . $job . '-' . md5($e->getMessage()), 'backup', 'failed', __('Background backup worker encountered an error.', 'uwh-site-migrator'), array('job' => $job, 'error' => $e->getMessage()), 3600);
                 $next['retry_at'] = time() + min(900, 60 * (2 ** min(4, $next['failures'])));
-                if ($next['failures'] >= 3) {
+                // Keep unattended jobs retryable through transient PHP/IO errors.
+                // Pause only after sustained repeated failures, not three hiccups.
+                if ($next['failures'] >= 8) {
                     $next['enabled'] = false;
                 }
             }
@@ -196,6 +279,7 @@ final class UWHSM_Background {
             // An administrator changed settings during the batch.
             if (!$next['enabled']) {
                 wp_clear_scheduled_hook(self::HOOK, array($job));
+                self::remember_job($job, false);
                 return;
             }
             if ($next['failures'] || time() < ($next['retry_at'] ?? 0)) {

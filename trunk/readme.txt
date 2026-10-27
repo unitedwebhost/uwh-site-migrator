@@ -3,7 +3,7 @@ Contributors: unitedwebhost
 Tags: backup, migration, restore, google-drive, site-migration
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 2.4.14
+Stable tag: 2.4.15
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -130,6 +130,11 @@ For safety, uninstall does **not** delete Site Migrator settings/options, encryp
 
 == Changelog ==
 
+= 2.4.15 =
+* Improve reliability of background backups when administrators switch tabs or close the browser: recover missing scheduled events and retry transient failures with limits.
+* Use adaptive file and database batches to reduce backup processing overhead on varied servers, retaining integrity and resume protection.
+* Preserve existing backup, restore, direct migration, Google Drive, maintenance and recovery functionality.
+
 = 2.4.14 =
 * Allow final verification to finish if the specific host-managed `.private/.htaccess` was removed or rewritten after restore; record a security warning requiring destination access-control review.
 * Keep all other file-integrity checks, archive checks and restore features unchanged.
@@ -181,12 +186,6 @@ For safety, uninstall does **not** delete Site Migrator settings/options, encryp
 * Keep destination credentials active until the database, homepage, theme and site identity pass verification; publish the restored users/usermeta tables together at finalization.
 * Preserve valid empty tagline settings and recreate only archive-verified site identity option rows when genuinely absent.
 * Retain import receipts until the completed restore is durably saved; support safe retries and older interrupted restore states.
-
-= 2.4.15 =
-* Verify and reconcile archived site title, description, icon and Elementor active kit; verify Elementor and theme-builder header/footer template posts before and after cross-domain restore. Validate those source settings before destructive import.
-* When restoring a full-database archive, remove obsolete tables belonging to the destination WordPress table prefix after verifying all restored source tables. Never delete unrelated database prefixes or unprefixed tables.
-* Preserve resumable restore state, Elementor post-restore repair and old-archive compatibility.
-
 
 = 2.4.14 =
 * Avoid false postmeta import failures when WordPress adds rows during an interrupted or long-running migration: verify every archived postmeta row and its content before accepting extra runtime rows.
