@@ -3,7 +3,7 @@
  * Plugin Name: UWH Site Migrator
  * Plugin URI: https://site-migrator.unitedwebhost.com/
  * Description: Backup, restore, and migrate WordPress sites with resumable processing, Direct Site-to-Site Migration, automatic rollback checkpoints, Google Drive sync, activity logs, diagnostics, and live progress.
- * Version: 2.4.15
+ * Version: 2.5.0
  * Author: United Web Host
  * Author URI: https://unitedwebhost.com/
  * Requires at least: 6.2
@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'UWHSM_VERSION', '2.4.15' );
+define( 'UWHSM_VERSION', '2.5.0' );
 define( 'UWHSM_FILE', __FILE__ );
 define( 'UWHSM_DIR', plugin_dir_path( __FILE__ ) );
 define( 'UWHSM_URL', plugin_dir_url( __FILE__ ) );
@@ -54,6 +54,7 @@ require_once UWHSM_DIR . 'includes/class-uwhsm-value-rewriter.php';
 require_once UWHSM_DIR . 'includes/class-uwhsm-logger.php';
 require_once UWHSM_DIR . 'includes/class-uwhsm-rollback.php';
 require_once UWHSM_DIR . 'includes/class-uwhsm-elementor-repair.php';
+require_once UWHSM_DIR . 'includes/class-uwhsm-stream-zip.php';
 require_once UWHSM_DIR . 'includes/class-uwhsm-engine.php';
 require_once UWHSM_DIR . 'includes/class-uwhsm-site-transfer.php';
 require_once UWHSM_DIR . 'includes/class-uwhsm-admin.php';

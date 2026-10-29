@@ -19,6 +19,7 @@
   let lastProgressChange = 0;
   const stopButton = el('svm-stop-backup');
   const resumeButton = el('svm-resume-monitor');
+  const skipFileButton = el('svm-skip-blocked-file');
   let monitorWorking = false;
   let workerJob = '';
   let recentWorkerError = '';
@@ -39,6 +40,19 @@
     } catch (_) { return true; } // Server-side advisory file locks remain authoritative.
   };
   let stoppingJob = '';
+  const syncBackupRowButtons = (jobs, selected) => {
+    document.querySelectorAll('#svm-backups .svm-resume-temporary, #svm-backups .svm-pause-temporary').forEach(button => {
+      const job = button.dataset.job || '';
+      const state = jobs.find(item => item.job === job);
+      if (!state) return;
+      const showPause = job === selected && !state.paused && !state.cancel_requested && !state.done;
+      button.classList.toggle('svm-pause-temporary', showPause);
+      button.classList.toggle('svm-resume-temporary', !showPause);
+      button.classList.toggle('button-primary', !showPause);
+      button.textContent = showPause ? __('Pause backup', 'uwh-site-migrator') : __('Resume backup', 'uwh-site-migrator');
+      button.disabled = !!state.cancel_requested;
+    });
+  };
   let activeJobsCount = 0;
   const stopComplete = job => {
     clearStoredJob(job);
@@ -50,6 +64,7 @@
     root.classList.remove('is-running');
     if (stopButton) stopButton.hidden = true;
     if (resumeButton) resumeButton.hidden = true;
+    if (skipFileButton) skipFileButton.hidden = true;
     document.dispatchEvent(new Event('uwhsm-backup-stop-finished'));
     // Discover any *other* unfinished jobs instead of resurrecting a deleted job.
     poll();
@@ -61,6 +76,30 @@
     if (!json.success) throw new Error(json.data?.message || __('Could not stop backup.', 'uwh-site-migrator'));
     return json.data;
   };
+  if (skipFileButton) skipFileButton.addEventListener('click', async () => {
+    const job = currentJob;
+    const file = skipFileButton.dataset.file || '';
+    if (!job || !file || stoppingJob || monitorWorking ||
+        !window.confirm(__('Skip only this file? ', 'uwh-site-migrator') + file + '\n\n' +
+          __('The backup will be PARTIAL. Restoring it may leave the Site Migrator plugin incomplete. The skipped file will be recorded in the logs and integrity manifest.', 'uwh-site-migrator'))) return;
+    skipFileButton.disabled = true;
+    try {
+      const body = new URLSearchParams({ action:'uwhsm_backup_skip_blocked_file', _ajax_nonce:UWHSM_DATA.nonce, job });
+      const response = await fetch(UWHSM_DATA.ajax, { method:'POST', credentials:'same-origin', body, cache:'no-store' });
+      const json = await response.json();
+      if (!json.success || !json.data?.skipped) throw new Error(json.data?.message || __('File could not be skipped.', 'uwh-site-migrator'));
+      recentWorkerError = '';
+      workerCooldown = 0;
+      skipFileButton.hidden = true;
+      const note = el('svm-backup-monitor-note');
+      if (note) note.textContent = __('The selected plugin file was skipped. This backup is PARTIAL; continuing from saved progress.', 'uwh-site-migrator');
+      await poll();
+      if (!document.hidden) assistBackup(job);
+    } catch(e) {
+      const note = el('svm-backup-monitor-note');
+      if (note) note.textContent = e.message;
+    } finally { skipFileButton.disabled = false; }
+  });
   if (stopButton) stopButton.addEventListener('click', async () => {
     const job = currentJob;
     if (!job || stoppingJob || !window.confirm(__('Stop this unfinished backup? Its incomplete archive and temporary database export will be deleted. Completed backups will not be affected.', 'uwh-site-migrator'))) return;
@@ -87,7 +126,7 @@
     }
   });
   const update = state => {
-    if (!state) { root.hidden = true; root.classList.remove('is-running'); if (stopButton) stopButton.hidden = true; if (resumeButton) resumeButton.hidden = true; return; }
+    if (!state) { root.hidden = true; root.classList.remove('is-running'); if (stopButton) stopButton.hidden = true; if (resumeButton) resumeButton.hidden = true; if (skipFileButton) skipFileButton.hidden = true; return; }
     const previousJob = currentJob;
     currentJob = state.job;
     const percent = Math.min(100, Math.max(0, Number(state.progress) || 0));
@@ -97,6 +136,12 @@
       lastProgressChange = Date.now();
     }
     root.hidden = false;
+    if (skipFileButton) {
+      const candidate = typeof state.skip_candidate === 'string' ? state.skip_candidate : '';
+      skipFileButton.dataset.file = candidate;
+      skipFileButton.hidden = !candidate || !!state.done || !!state.cancel_requested || !!stoppingJob;
+      skipFileButton.disabled = monitorWorking || !!stoppingJob;
+    }
     if (stopButton) {
       stopButton.hidden = !!state.done || !state.job;
       stopButton.disabled = !!stoppingJob || !!state.cancel_requested;
@@ -106,14 +151,16 @@
       resumeButton.disabled = !!stoppingJob;
     }
     const activityAt = Number(state.last_activity || state.last_tick || 0) * 1000;
-    const foregroundActive = (!!window.UWHSM_BACKUP_ACTIVE && state.job === storedJob()) || (monitorWorking && workerJob === state.job);
-    const workerActive = !!state.background_enabled && !!state.scheduled && !!activityAt && (Date.now() - activityAt < 45000);
-    if (resumeButton && (foregroundActive || workerActive)) resumeButton.hidden = true;
-    const running = !state.done && !state.cancel_requested && stoppingJob !== state.job && !state.error && (foregroundActive || workerActive);
+    const foregroundActive = !state.paused && !!state.selected && ((!!window.UWHSM_BACKUP_ACTIVE && state.job === storedJob()) || (monitorWorking && workerJob === state.job));
+    const workerActive = !state.paused && !!state.selected && !!state.background_enabled && !!state.scheduled && !!activityAt && (Date.now() - activityAt < 45000);
+    if (resumeButton && (foregroundActive || workerActive || !!state.skip_candidate)) resumeButton.hidden = true;
+    const running = !state.done && !state.cancel_requested && stoppingJob !== state.job && !state.error && !state.skip_candidate && (foregroundActive || workerActive);
     root.classList.toggle('is-running', running);
     root.classList.toggle('is-warning', !!state.error || (!running && !state.cancel_requested && !state.scheduled && !state.done));
     el('svm-backup-monitor-title').textContent = state.done ? __('Backup completed', 'uwh-site-migrator') :
       state.cancel_requested || stoppingJob === state.job ? __('Stopping backup safely', 'uwh-site-migrator') :
+      state.paused ? __('Backup paused', 'uwh-site-migrator') :
+      state.skip_candidate ? __('File retry failed — skip available', 'uwh-site-migrator') :
       running ? __('Background backup running', 'uwh-site-migrator') :
       state.background_enabled && state.scheduled && !state.error ? __('Waiting for background worker', 'uwh-site-migrator') :
       __('Backup waiting / paused', 'uwh-site-migrator');
@@ -121,6 +168,8 @@
     el('svm-backup-monitor-label').textContent = state.label || state.name || __('Preparing…', 'uwh-site-migrator');
     el('svm-backup-monitor-percent').textContent = Math.floor(percent) + '%';
     let note = state.cancel_requested || stoppingJob === state.job ? __('Stopping safely…', 'uwh-site-migrator') : (state.error || '');
+    if (state.skip_candidate && !state.done) note = __('Automatic read retry finished (3 attempts). Choose Skip this file & resume to continue with a PARTIAL backup, or stop the job.', 'uwh-site-migrator') + ' ' + state.skip_candidate;
+    if (!note && state.paused) note = __('Backup paused by administrator. Saved progress is preserved; use Resume backup to continue.', 'uwh-site-migrator');
     if (!note && !state.done && !state.background_enabled) note = __('Backup is paused. Click Resume now to continue in this tab, or Stop backup to discard it.', 'uwh-site-migrator');
     if (!note && !state.done && state.background_enabled && !state.scheduled) note = __('Server cron is unavailable. Click Resume now to continue while this admin page is open.', 'uwh-site-migrator');
     const recentlyMoving = !!lastProgressChange && Date.now() - lastProgressChange < 150000;
@@ -129,7 +178,7 @@
     if (monitorWorking && workerJob === state.job && !state.done && !state.cancel_requested) note = __('Backing up while this admin page is open. Stop backup is available at any time.', 'uwh-site-migrator');
     if (recentWorkerError && !state.done && !state.cancel_requested && !monitorWorking) note = recentWorkerError;
     if (state.done) note = __('The completed package is available under Import / Export.', 'uwh-site-migrator');
-    if (activeJobsCount > 1 && !state.done && !state.cancel_requested) note += (note ? ' · ' : '') + String(activeJobsCount) + ' ' + __('unfinished backup jobs remain. Stop each separately if they are no longer needed.', 'uwh-site-migrator');
+    if (activeJobsCount > 1 && !state.done && !state.cancel_requested) note += (note ? ' · ' : '') + __('Other unfinished backups are paused. Resume or delete them from Available backups.', 'uwh-site-migrator');
     el('svm-backup-monitor-note').textContent = note;
 
   };
@@ -168,7 +217,7 @@
           await delay(Math.min(8000, 1500 * workerRetries));
           continue;
         }
-        if (!result || result.cancelled || result.done) {
+        if (!result || result.cancelled || result.done || result.paused || result.blocked) {
           await poll();
           break;
         }
@@ -185,11 +234,42 @@
       poll();
     }
   };
-  if (resumeButton) resumeButton.addEventListener('click', () => {
+  if (resumeButton) resumeButton.addEventListener('click', async () => {
     const job = currentJob;
     if (!job || stoppingJob) return;
-    workerCooldown = 0;
-    assistBackup(job);
+    resumeButton.disabled = true;
+    try {
+      const body = new URLSearchParams({action:'uwhsm_backup_choose', _ajax_nonce:UWHSM_DATA.nonce, job});
+      const response = await fetch(UWHSM_DATA.ajax, {method:'POST', credentials:'same-origin', body, cache:'no-store'});
+      const result = await response.json();
+      if (!result.success) throw new Error(result.data?.message || __('Could not select backup.', 'uwh-site-migrator'));
+      workerCooldown = 0;
+      await poll();
+      assistBackup(job);
+    } catch (e) {
+      const note = el('svm-backup-monitor-note');
+      if (note) note.textContent = e.message;
+    } finally { resumeButton.disabled = false; }
+  });
+  document.addEventListener('uwhsm-backup-file-blocked', event => {
+    if (!event.detail || !event.detail.job) return;
+    // The same PHP request already completed the three read attempts.
+    // Display the saved skip candidate without a manual Resume/refresh.
+    workerJob = '';
+    releaseLease();
+    poll();
+  });
+  document.addEventListener('uwhsm-backup-paused', event => {
+    const job = event.detail && event.detail.job ? event.detail.job : '';
+    if (workerJob === job) workerJob = '';
+    releaseLease();
+    poll();
+  });
+  document.addEventListener('uwhsm-backup-selected', event => {
+    workerJob = '';
+    releaseLease();
+    currentJob = event.detail && event.detail.job ? event.detail.job : '';
+    poll();
   });
   document.addEventListener('uwhsm-backup-stop-requested', () => {
     workerJob = '';
@@ -214,9 +294,12 @@
       const listing = await request('');
       const jobs = Array.isArray(listing.jobs) ? listing.jobs : [];
       activeJobsCount = jobs.length;
-      if (jobs.length) {
-        update(jobs[0]);
-        if (stoppingJob && jobs[0].job === stoppingJob) {
+      const selected = listing.selected || '';
+      syncBackupRowButtons(jobs, selected);
+      const visibleJob = jobs.find(row => row.job === selected) || jobs[0];
+      if (visibleJob) {
+        update(visibleJob);
+        if (stoppingJob && visibleJob.job === stoppingJob) {
           try {
             const stopped = await cancelRequest(stoppingJob);
             if (stopped.cancelled) {
@@ -227,10 +310,10 @@
           }
           return;
         }
-        if (jobs[0].cancel_requested) {
+        if (visibleJob.cancel_requested) {
           // A tab may have closed after the stop marker was committed. The
           // marker is an authenticated admin decision; finalize cleanup here.
-          stoppingJob = jobs[0].job;
+          stoppingJob = visibleJob.job;
           try {
             const stopped = await cancelRequest(stoppingJob);
             if (stopped.cancelled) {
@@ -243,11 +326,11 @@
         }
         // WP-Cron can wait indefinitely on low-traffic sites. Assist an *enabled*
         // background job from this visible admin tab if its worker has been idle.
-        const age = Math.max(0, Date.now() - 1000 * Number(jobs[0].last_activity || jobs[0].last_tick || 0));
-        if (jobs[0].background_enabled && !jobs[0].error && !jobs[0].cancel_requested &&
+        const age = Math.max(0, Date.now() - 1000 * Number(visibleJob.last_activity || visibleJob.last_tick || 0));
+        if (visibleJob.selected && !visibleJob.paused && !visibleJob.skip_candidate && visibleJob.background_enabled && !visibleJob.error && !visibleJob.cancel_requested &&
             age > 30000 && Date.now() > workerCooldown && !monitorWorking &&
             !window.UWHSM_BACKUP_ACTIVE && !stoppingJob && !document.hidden) {
-          assistBackup(jobs[0].job);
+          assistBackup(visibleJob.job);
         }
         const resume = document.querySelector('#svm-resume-backup');
         if (resume) {

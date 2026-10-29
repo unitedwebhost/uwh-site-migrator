@@ -1,3 +1,48 @@
+2.5.0 — WordPress.org Plugin Check improvements (version retained):
+- Retain original WordPress.org readme title: UWH Site Migrator – WP Migration, Backup & Restore.
+- Keep backup, restore, migration, Fast ZIP, pause/resume and Google Drive engine algorithms intact.
+- Document essential native ZIP/journal and locking operations; WordPress Filesystem does not support byte offsets or lock handles.
+- Improve exception output escaping and translator placeholder comments; use WordPress filesystem helpers where appropriate.
+- Exclude experimental developer documentation from the public package.
+
+2.4.19 — Create Backup UI cleanup and Fast ZIP journal guard (same version):
+- Show compact Background backup and Fast ZIP (experimental) options without redundant helper paragraphs.
+- Reject invalid UTF-8 ZIP journal entries before commit and retain the previous safe resume offsets.
+- No change to saved jobs, backup/restore formats, scheduled backups or Google Drive.
+
+2.4.19 — Fast ZIP safety fixes (same version, experimental opt-in):
+- Retry transient source-read failures during append-only archive writes up to three times while retaining the last committed archive and journal offsets.
+- Never classify ZIP output/journal writes, disk-space failures, or archive errors as skippable source-file failures; prevent an incomplete package from being mislabeled as successfully backed up.
+- Verify private database staging is writable before creating a resumable backup state, and clean up a failed backup-start staging directory.
+- Preserve the legacy writer, backup data format, existing saved jobs and restore/Direct Migration/Google Drive code paths.
+
+2.4.19 — Fast ZIP activation/compatibility hotfix (experimental opt-in):
+- Fix missing manual-backup writer-state persistence that could incorrectly route streamed archives to the legacy ZipArchive processor on the next batch.
+- Add an explicit Fast ZIP opt-in to the manual Create Backup form. Previous unfinished archives, rollback checkpoints and scheduled backups are never switched between writers.
+- Show the active archive writer alongside Troubleshooting performance metrics and reject incomplete legacy/mixed-writer state safely.
+- Repair an undefined scheduled-backup stream reference, clean up an aborted stream journal, and update versioned admin assets.
+- No change to .uwh archive contract, restore engine, database row serialization, Direct Migration, Google Drive, Pause/Resume, Stop or maintenance access.
+- This remains experimental: test full backup, ZIP extraction and restore on staging before publishing broadly.
+
+2.4.18 — Experimental append-only ZIP64 writer (disabled by default):
+- Stage-1 architecture: stream verified new manual backup entries without repeatedly reopening and rewriting the entire archive; emit the ZIP64 directory once at completion.
+- Batch offset/index journal can discard incomplete writes after PHP/cron interruption. Maintain source SHA-256 checks, cleanup integration, and pre-completion ZIP validation.
+- Existing backup jobs, checkpoint/rollback, scheduled automatic backups, restore, Direct Migration and Google Drive use the same production paths unless an administrator explicitly opts in for a fresh manual backup.
+- Safety gate: define UWHSM_EXPERIMENTAL_STREAM_ZIP true only on a staging/test website and verify a full backup-restore cycle before wider rollout.
+
+2.4.17 — Step 3 and 4 safe archiving / database efficiency update:
+- Skip ZIP open and close entirely for batches that only process already excluded/transient files; retain the last real archive-write timing for adaptive decisions.
+- Use bounded database row streaming with robust short-write handling, exact v1 .rows serialization and resume-from-committed-byte-offset semantics.
+- Inventory and verify staged database schema/rows in a single file pass before final ZIP queuing, preserving existing SHA-256 checks and archive format.
+- No segmented-archive format change or new restore staging. The existing .uwh archive remains readable by compatible previous releases.
+- Backup/restore/Drive/Direct Migration/Resume/Stop and security controls unchanged; real server speed benefits depend on archive composition and storage limits.
+
+2.4.16 — Backup archiving diagnostics and smarter adaptive batches:
+- Save the latest 16 file-batch performance samples with each resumable backup job and show the last 8 in Troubleshooting. Include ZIP open/checksum/entry-queue/close time, total time, input MiB/s, file count and chosen batch limits in downloaded diagnostics.
+- Tune bounded batch limits based on measured end-to-end duration, ZIP close, throughput and checksum/file overhead; older job states retain the previous close-time-based fallback.
+- Keep the .uwh package format and all existing backup, restore, Direct Migration, Google Drive, background, Stop/Resume, maintenance and checkpoint behaviors intact.
+
+v2.4.15: Administrator-confirmed skip of the currently blocked UWH Site Migrator PHP file during an unfinished ordinary backup. Partial backups are labeled and logged; core/theme/checkpoint files cannot use this override.
 2.4.15 — Background backup reliability release:
 - Improve background backup scheduling, controlled retries, and recovery of missing WP-Cron events so saved jobs can continue when the browser tab is inactive, subject to server cron execution.
 - Retain adaptive file/database batch processing and existing backup cancellation/resume behavior.

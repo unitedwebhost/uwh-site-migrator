@@ -202,6 +202,7 @@ final class UWHSM_Admin {
                     <div class="svm-backup-monitor-actions">
                         <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=site-migrator-import-export')); ?>"><?php esc_html_e('View backup', 'uwh-site-migrator'); ?></a>
                         <button type="button" class="button button-small svm-backup-resume" id="svm-resume-monitor" hidden><?php esc_html_e('Resume now', 'uwh-site-migrator'); ?></button>
+                        <button type="button" class="button button-small svm-backup-skip-file" id="svm-skip-blocked-file" hidden><?php esc_html_e('Skip this file & resume', 'uwh-site-migrator'); ?></button>
                         <button type="button" class="button button-small svm-backup-stop" id="svm-stop-backup"><?php esc_html_e('Stop backup', 'uwh-site-migrator'); ?></button>
                     </div>
                 </div>
@@ -375,7 +376,7 @@ final class UWHSM_Admin {
         <section class="svm-card svm-list svm-backup-list">
             <div class="svm-card-head svm-card-head-split"><span class="dashicons dashicons-archive"></span><div><h2><?php esc_html_e('Available backups', 'uwh-site-migrator');
              ?></h2><p><?php esc_html_e('Restore, download, send to Drive or remove packages stored on this server.', 'uwh-site-migrator');
-             ?></p></div><div class="svm-list-summary"><strong><?php echo esc_html((string) $metrics['complete_count']);
+             ?></p></div><button type="button" class="button svm-stop-all-unfinished" title="<?php echo esc_attr__('Stop and remove all unfinished ordinary backups. Completed backups and safety checkpoints are preserved.', 'uwh-site-migrator'); ?>"><?php esc_html_e('Stop all unfinished', 'uwh-site-migrator'); ?></button><div class="svm-list-summary"><strong><?php echo esc_html((string) $metrics['complete_count']);
              ?></strong><span><?php esc_html_e('completed', 'uwh-site-migrator');
              ?></span><strong><?php echo esc_html(size_format($metrics['local_bytes'], 2));
              ?></strong><span><?php esc_html_e('local usage', 'uwh-site-migrator'); ?></span></div></div>
@@ -407,6 +408,12 @@ final class UWHSM_Admin {
                              ?>" <?php disabled(!$drive_connected);
                              ?>><?php echo esc_html($transfer && in_array($transfer['status'], array('queued', 'uploading', 'waiting'), true) ? __('Resume Drive upload', 'uwh-site-migrator') : __('Send to Drive', 'uwh-site-migrator')); ?></button>
                         <?php endif; ?>
+                            <?php if (!$backup['complete'] && !empty($backup['resumable'])): ?>
+                                <?php $backup_running_selected = !empty($backup['selected']) && empty($backup['paused']); ?>
+                                <button type="button" class="button <?php echo $backup_running_selected ? 'svm-pause-temporary' : 'button-primary svm-resume-temporary'; ?>" data-job="<?php echo esc_attr($backup['job']); ?>" data-backup="<?php echo esc_attr($backup['name']); ?>" data-resume-url="<?php echo esc_url(admin_url('admin.php?page=site-migrator-import-export')); ?>"><?php echo esc_html($backup_running_selected ? __('Pause backup', 'uwh-site-migrator') : __('Resume backup', 'uwh-site-migrator')); ?></button>
+                            <?php elseif (!$backup['complete']): ?>
+                                <span class="svm-backup-no-resume" title="<?php echo esc_attr__('No valid saved job-state is available for this archive.', 'uwh-site-migrator'); ?>"><?php esc_html_e('Not resumable', 'uwh-site-migrator'); ?></span>
+                            <?php endif; ?>
                             <button type="button" class="button svm-delete" name="backup_name" value="<?php echo esc_attr($backup['name']);
                              ?>" data-backup="<?php echo esc_attr($backup['name']);
                              ?>"><?php echo esc_html($backup['complete'] ? __('Delete', 'uwh-site-migrator') : __('Delete temporary', 'uwh-site-migrator')); ?></button>
@@ -444,8 +451,10 @@ final class UWHSM_Admin {
             <section class="svm-card">
                 <div class="svm-card-head"><span class="dashicons dashicons-database-export"></span><div><h2><?php esc_html_e('Create backup', 'uwh-site-migrator');
                  ?></h2><p><?php esc_html_e('Database, themes, plugins, uploads and WordPress files.', 'uwh-site-migrator'); ?></p></div></div>
-                <label class="svm-confirm"><input type="checkbox" id="svm-background-opt" checked> <?php esc_html_e('Continue this backup in the background (requires working cron).', 'uwh-site-migrator'); ?></label>
-                <p class="description"><?php esc_html_e('Progress remains visible across Site Migrator pages. For reliable unattended speed, configure a real server cron; WP-Cron depends on site traffic.', 'uwh-site-migrator'); ?></p>
+                <div class="svm-backup-options" role="group" aria-label="<?php esc_attr_e('Backup options', 'uwh-site-migrator'); ?>">
+                    <label class="svm-confirm"><input type="checkbox" id="svm-background-opt" checked> <?php esc_html_e('Background backup', 'uwh-site-migrator'); ?></label>
+                    <label class="svm-confirm"><input type="checkbox" id="svm-fast-zip-opt"> <?php esc_html_e('Fast ZIP (experimental)', 'uwh-site-migrator'); ?></label>
+                </div>
                 <button class="button button-primary button-hero" id="svm-start" <?php disabled(is_multisite());
                  ?>><?php esc_html_e('Create full backup', 'uwh-site-migrator'); ?></button>
                 <button class="button button-secondary button-hero" id="svm-start-drive" <?php disabled(is_multisite() || !$drive_connected);
@@ -512,7 +521,7 @@ final class UWHSM_Admin {
                                 <button type="button" class="button svm-send-drive" data-backup="<?php echo esc_attr($backup['name']);
                                  ?>" <?php disabled(!$drive_connected);
                                  ?>><?php echo esc_html($transfer && in_array($transfer['status'], array('queued', 'uploading', 'waiting'), true) ? __('Resume Drive upload', 'uwh-site-migrator') : __('Send to Drive', 'uwh-site-migrator')); ?></button>
-                                <button type="button" class="button svm-delete" name="backup_name" value="<?php echo esc_attr($backup['name']);
+                            <button type="button" class="button svm-delete" name="backup_name" value="<?php echo esc_attr($backup['name']);
                                  ?>" data-backup="<?php echo esc_attr($backup['name']);
                                  ?>"><?php esc_html_e('Delete', 'uwh-site-migrator'); ?></button>
                             </div>
@@ -814,6 +823,22 @@ final class UWHSM_Admin {
         foreach (UWHSM_Logger::recent(array('status' => 'failed', 'limit' => 20)) as $row) {
             $lines[] = gmdate('Y-m-d H:i:s', (int) $row['timestamp']) . ' ' . __('UTC', 'uwh-site-migrator') . ' | ' . strtoupper($row['category']) . ' | ' . $row['message'];
         }
+        $perf = UWHSM_Engine::instance()->backup_archive_diagnostics();
+        $lines[] = '';
+        $lines[] = __('BACKUP ARCHIVE PERFORMANCE (LAST 8 BATCHES)', 'uwh-site-migrator');
+        $lines[] = __('Backup: ', 'uwh-site-migrator') . (string) $perf['name'];
+        foreach ((array) $perf['samples'] as $sample) {
+            $lines[] = gmdate('Y-m-d H:i:s', (int) ($sample['at'] ?? 0)) . ' UTC | files=' . (int) ($sample['files'] ?? 0)
+                . ' bytes=' . (int) ($sample['bytes'] ?? 0)
+                . ' open_s=' . (float) ($sample['open_s'] ?? 0)
+                . ' checksum_s=' . (float) ($sample['checksum_s'] ?? 0)
+                . ' queue_s=' . (float) ($sample['enqueue_s'] ?? 0)
+                . ' close_s=' . (float) ($sample['close_s'] ?? 0)
+                . ' total_s=' . (float) ($sample['total_s'] ?? 0)
+                . ' MiB_per_s=' . (float) ($sample['rate_mib_s'] ?? 0)
+                . ' limit_bytes=' . (int) ($sample['limit_bytes'] ?? 0)
+                . ' limit_files=' . (int) ($sample['limit_files'] ?? 0);
+        }
         $lines[] = '';
          $lines[] = __('Security note: migration keys, restore tokens, OAuth access tokens and passwords are intentionally excluded.', 'uwh-site-migrator');
         $filename = 'site-migrator-diagnostics-' . gmdate('Y-m-d-His') . '.txt';
@@ -964,6 +989,7 @@ final class UWHSM_Admin {
         $d = $this->diagnostic_snapshot();
         $maintenance = UWHSM_Engine::instance()->maintenance_status();
         $failed_logs = UWHSM_Logger::recent(array('status' => 'failed', 'limit' => 8));
+        $archive_perf = UWHSM_Engine::instance()->backup_archive_diagnostics();
         $this->page_start(__('Troubleshooting & Diagnostics', 'uwh-site-migrator'), __('Review migration readiness, maintenance access, server limits and recent failures.', 'uwh-site-migrator'), 'troubleshooting');
         ?>
         <section class="svm-diagnostic-hero <?php echo $d['required_failures'] ? 'has-issues' : 'is-ready'; ?>">
@@ -1122,9 +1148,7 @@ final class UWHSM_Admin {
                     <div><dt><?php esc_html_e('Last worker tick', 'uwh-site-migrator');
                      ?></dt><dd><?php echo $d['last_tick'] ? esc_html(wp_date('d M Y · H:i', (int) $d['last_tick'])) : esc_html__('No tick recorded', 'uwh-site-migrator'); ?></dd></div>
                 </dl>
-                <p class="svm-note"><?php esc_html_e('On low-traffic sites, configure a hosting cron to call', 'uwh-site-migrator');
-                 ?> <code><?php esc_html_e('wp-cron.php', 'uwh-site-migrator');
-                 ?></code> <?php esc_html_e('regularly when WordPress page-triggered cron is disabled.', 'uwh-site-migrator'); ?></p>
+                <p class="svm-note"><?php esc_html_e('For uninterrupted manual or scheduled backups after closing the tab, run a real hosting cron every minute. Prefer WP-CLI: wp cron event run --due-now --path=/path/to/wordpress --quiet. Alternatively schedule a request to wp-cron.php. Without server cron, backups can wait when the website receives no visits.', 'uwh-site-migrator'); ?></p>
             </section>
 
             <section class="svm-card">
@@ -1144,6 +1168,46 @@ final class UWHSM_Admin {
             </section>
 
         </div>
+
+        <section class="svm-card" id="uwhsm-archive-performance" style="margin-top:18px">
+            <div class="svm-card-head"><span class="dashicons dashicons-chart-line" aria-hidden="true"></span><div>
+                <h2><?php esc_html_e('Backup archiving performance', 'uwh-site-migrator'); ?></h2>
+                <p><?php esc_html_e('Recent measured file-batch times. These help diagnose slow ZIP close, checksums and disk throughput without changing backup data.', 'uwh-site-migrator'); ?></p>
+            </div></div>
+            <?php if (empty($archive_perf['samples'])) : ?>
+                <p class="svm-note"><?php esc_html_e('No file-batch performance data yet. Start or resume a backup to collect measurements.', 'uwh-site-migrator'); ?></p>
+            <?php else : ?>
+                <p class="svm-note"><strong><?php esc_html_e('Backup:', 'uwh-site-migrator'); ?></strong> <?php echo esc_html((string) $archive_perf['name']); ?> <span style="margin-left:12px"><strong><?php esc_html_e('ZIP writer:', 'uwh-site-migrator'); ?></strong> <?php echo 'stream-v1' === ($archive_perf['writer'] ?? '') ? esc_html__('Fast append-only (experimental)', 'uwh-site-migrator') : esc_html__('Standard ZipArchive', 'uwh-site-migrator'); ?></span></p>
+                <div style="overflow-x:auto;max-width:100%">
+                    <table class="widefat striped" style="min-width:860px">
+                        <thead><tr>
+                            <th><?php esc_html_e('Time', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('Files / data', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('ZIP open', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('Checksum', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('ZIP queue', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('ZIP close', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('Total', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('Input MiB/s', 'uwh-site-migrator'); ?></th>
+                            <th><?php esc_html_e('Batch cap', 'uwh-site-migrator'); ?></th>
+                        </tr></thead>
+                        <tbody>
+                        <?php foreach (array_reverse($archive_perf['samples']) as $sample) : ?>
+                            <tr>
+                                <td><?php echo esc_html(wp_date('d M H:i:s', (int) ($sample['at'] ?? 0))); ?></td>
+                                <td><?php echo esc_html((string) (int) ($sample['files'] ?? 0) . ' / ' . size_format((int) ($sample['bytes'] ?? 0), 2)); ?></td>
+                                <?php foreach (array('open_s', 'checksum_s', 'enqueue_s', 'close_s', 'total_s', 'rate_mib_s') as $key) : ?>
+                                    <td><?php echo esc_html(number_format_i18n((float) ($sample[$key] ?? 0), 2)); ?></td>
+                                <?php endforeach; ?>
+                                <td><?php echo esc_html(size_format((int) ($sample['limit_bytes'] ?? 0), 0) . ' / ' . (int) ($sample['limit_files'] ?? 0) . ' files'); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="svm-note"><?php esc_html_e('Input MiB/s includes ZIP open/close overhead and is based on uncompressed source bytes. The last 8 samples are shown; the latest 16 remain in the saved backup job. Real server performance varies.', 'uwh-site-migrator'); ?></p>
+            <?php endif; ?>
+        </section>
 
         <?php $this->page_end();
     }

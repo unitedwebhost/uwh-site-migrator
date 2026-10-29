@@ -81,6 +81,14 @@
     if (d) d.disabled = true;
     if (r) { r.disabled = true; r.hidden = true; }
   });
+  document.addEventListener('uwhsm-backup-pause-requested', () => {
+    // Stop this tab's foreground loop. The server marker prevents Cron and
+    // other tabs from starting another batch until explicitly resumed.
+    backupRun++;
+    window.UWHSM_BACKUP_ACTIVE = false;
+    const resume = $('#svm-resume-backup');
+    if (resume) { resume.disabled = false; resume.hidden = false; }
+  });
   document.addEventListener('uwhsm-backup-stop-finished', () => {
     const s = $('#svm-start'), d = $('#svm-start-drive'), r = $('#svm-resume-backup');
     if (s) s.disabled = false;
@@ -375,14 +383,25 @@
     window.UWHSM_BACKUP_ACTIVE = true;
     const p = $('#svm-backup-progress'), l = $('#svm-backup-log'); if (start) start.disabled = true; if (startDrive) startDrive.disabled = true; if (resumeBackup) resumeBackup.disabled = true; if (l) l.textContent = '';
     try {
-      let state = job ? { job, done: false } : await post('uwhsm_backup_start', { delivery });
+      // Resuming is an explicit administrator choice; server pauses all
+      // other unfinished jobs before continuing this archive.
+      const backgroundRequested = !!($('#svm-background-opt') && $('#svm-background-opt').checked);
+      // Writer selection applies ONLY when starting a new manual job. Never
+      // change a saved backup engine from the browser during Resume.
+      const fastZipRequested = !job && !!($('#svm-fast-zip-opt') && $('#svm-fast-zip-opt').checked);
+      if (job) await post('uwhsm_backup_choose', {job, background: backgroundRequested ? '1' : '0'});
+      let state = job ? { job, done: false } : await post('uwhsm_backup_start', { delivery, background: backgroundRequested ? '1' : '0', fast_zip: fastZipRequested ? '1' : '0' });
       localStorage.setItem('svmBackupJob', state.job);
-      if (!job && $('#svm-background-opt') && $('#svm-background-opt').checked) {
+      if (state.background_warning && l) {
+        log(l, state.background_warning, true);
+      }
+      // Background scheduling now happens in the SAME request as creation,
+      // before the browser can close. Older server implementations still work
+      // with the existing explicit configuration endpoint.
+      if (backgroundRequested && !job && !state.background_enabled && !state.background_warning) {
         try {
           await post('uwhsm_background_configure', {job: state.job, enabled: '1'});
         } catch (error) {
-          // The backup job has already been created. A missing cron schedule
-          // must not strand it before its first file or database batch.
           if (l) log(l, __('Background scheduling is unavailable. The saved backup will continue in this tab; configure hosting cron for unattended processing.', 'uwh-site-migrator') + ' ' + error.message, true);
         }
       }
@@ -393,9 +412,18 @@
         try {
           state = await post('uwhsm_backup_step', { job: state.job });
           if (thisRun !== backupRun || state.cancelled) return;
+          if (state.paused) {
+            if (l) log(l, __('Backup paused. Your saved progress is ready to resume.', 'uwh-site-migrator'));
+            return;
+          }
           transientFailures = 0;
           if (l && l.classList.contains('is-error')) l.textContent = '';
           progress(p, state.progress, state.label);
+          if (state.blocked && state.skip_candidate) {
+            if (l) log(l, __('Automatic file read retry failed after 3 attempts. Use Skip this file & resume in the backup progress card to continue with a PARTIAL backup.', 'uwh-site-migrator'), true);
+            document.dispatchEvent(new CustomEvent('uwhsm-backup-file-blocked', {detail:{job:state.job, file:state.skip_candidate}}));
+            return;
+          }
         } catch (error) {
           if (!error.recoverable || thisRun !== backupRun) throw error;
           transientFailures++;
@@ -443,11 +471,102 @@
     } catch (e) { if(thisRun !== backupRun){return;} if (l) log(l, e.message + __(' You can use Resume interrupted backup.', 'uwh-site-migrator'), true); if (start) start.disabled = false; if (startDrive) startDrive.disabled = false; if (resumeBackup) resumeBackup.hidden = false; }
     finally { window.UWHSM_BACKUP_ACTIVE = false; if (resumeBackup) resumeBackup.disabled = false; }
   };
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('.svm-pause-temporary');
+    if (!button) return;
+    const job = button.dataset.job || '';
+    if (!job) return;
+    button.disabled = true;
+    try {
+      const result = await post('uwhsm_backup_pause', {job});
+      if (!result.paused) throw new Error(__('The server did not confirm that the backup was paused.', 'uwh-site-migrator'));
+      // Keep the incomplete archive and database progress. Pausing is not Stop.
+      document.dispatchEvent(new CustomEvent('uwhsm-backup-pause-requested', {detail:{job}}));
+      button.classList.remove('svm-pause-temporary');
+      button.classList.add('svm-resume-temporary', 'button-primary');
+      button.textContent = __('Resume backup', 'uwh-site-migrator');
+      document.dispatchEvent(new CustomEvent('uwhsm-backup-paused', {detail:{job}}));
+    } catch (error) {
+      window.alert(error.message || __('Could not pause this backup.', 'uwh-site-migrator'));
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('.svm-resume-temporary');
+    if (!button) return;
+    const job = button.dataset.job || '';
+    if (!job || window.UWHSM_BACKUP_ACTIVE) return;
+    button.disabled = true;
+    try {
+      // Server verifies archive path and pauses all other unfinished jobs.
+      await post('uwhsm_backup_choose', {job});
+      try { localStorage.setItem('svmBackupJob', job); } catch (_) {}
+      document.dispatchEvent(new CustomEvent('uwhsm-backup-selected', {detail: {job}}));
+      // On Overview the persistent monitor is available; on Import / Export
+      // the ordinary foreground loop can immediately continue the selected job.
+      if ($('#svm-backup-progress')) {
+        await runBackup(job);
+      } else {
+        try { sessionStorage.setItem('uwhsmResumeSelectedBackup', job); } catch (_) {}
+        window.location.href = button.dataset.resumeUrl || window.location.href;
+      }
+    } catch (error) {
+      window.alert(error.message || __('Could not resume this temporary backup.', 'uwh-site-migrator'));
+      button.disabled = false;
+    }
+  });
+
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('.svm-stop-all-unfinished');
+    if (!button) return;
+    if (!window.confirm(__('Stop and remove ALL unfinished ordinary backups? Completed backups and restore checkpoints will be kept.', 'uwh-site-migrator'))) return;
+    button.disabled = true;
+    const failures = [];
+    let pending = 0;
+    try {
+      const status = await post('uwhsm_backup_status');
+      const jobs = Array.isArray(status.jobs) ? status.jobs : [];
+      for (const jobState of jobs) {
+        try {
+          const result = await post('uwhsm_backup_cancel', {job: jobState.job});
+          if (result.pending) pending++;
+        } catch (e) { failures.push(jobState.name + ': ' + e.message); }
+      }
+      // Orphan temporary archives have no job-state and cannot be resumed.
+      const orphans = Array.from(document.querySelectorAll('#svm-backups tr[data-backup]')).filter(row =>
+        !!row.querySelector('.svm-backup-no-resume'));
+      for (const row of orphans) {
+        try { await post('uwhsm_delete_backup', {backup_name: row.dataset.backup}); }
+        catch (e) { failures.push(row.dataset.backup + ': ' + e.message); }
+      }
+      if (failures.length || pending) {
+        window.alert((pending ? pending + ' ' + __('backup batch(es) are finishing; cleanup is queued.', 'uwh-site-migrator') + '\n' : '') + failures.join('\n'));
+      }
+      window.location.reload();
+    } catch (error) { window.alert(error.message); button.disabled = false; }
+  });
   if (start) start.addEventListener('click', () => runBackup(undefined, 'local'));
   if (startDrive) startDrive.addEventListener('click', () => runBackup(undefined, 'drive'));
   if (resumeBackup) {
-    resumeBackup.hidden = !localStorage.getItem('svmBackupJob');
-    resumeBackup.addEventListener('click', () => runBackup(localStorage.getItem('svmBackupJob')));
+    let savedBackup = '';
+    try { savedBackup = localStorage.getItem('svmBackupJob') || ''; } catch (_) {}
+    resumeBackup.hidden = !savedBackup;
+    resumeBackup.addEventListener('click', () => {
+      let job = '';
+      try { job = localStorage.getItem('svmBackupJob') || ''; } catch (_) {}
+      if (job) runBackup(job);
+    });
+    // Explicit choice in Available backups may navigate from Overview to here.
+    // It is still the same saved job and never starts a new archive.
+    try {
+      const chosen = sessionStorage.getItem('uwhsmResumeSelectedBackup') || '';
+      if (chosen && chosen === savedBackup) {
+        sessionStorage.removeItem('uwhsmResumeSelectedBackup');
+        runBackup(chosen);
+      }
+    } catch (_) {}
   }
 
   const file = $('#svm-file'), confirm = $('#svm-confirm'), upload = $('#svm-upload'), restoreCheckpoint = $('#svm-restore-checkpoint');
@@ -834,7 +953,15 @@
       const backupName = b.dataset.backup || b.value || (row && row.dataset.backup) || (row && row.querySelector('td strong') ? row.querySelector('td strong').textContent.trim() : '');
       if (!backupName) throw new Error(__('Could not identify this backup. Refresh the page and try again.', 'uwh-site-migrator'));
       const result = await post('uwhsm_delete_backup', { backup_name: backupName });
-      backupRun++; localStorage.removeItem('svmBackupJob'); if (resumeBackup) resumeBackup.hidden = true; if (start) start.disabled = false;
+      const actionButton = row && row.querySelector('.svm-resume-temporary, .svm-pause-temporary');
+      const rowJob = actionButton ? actionButton.dataset.job : '';
+      const stored = (() => { try { return localStorage.getItem('svmBackupJob'); } catch (_) { return ''; } })();
+      if (rowJob && rowJob === stored) {
+        backupRun++;
+        try { localStorage.removeItem('svmBackupJob'); } catch (_) {}
+        if (resumeBackup) resumeBackup.hidden = true;
+      }
+      if (start && !result.pending) start.disabled = false;
       const backupProgress = $('#svm-backup-progress'); if (backupProgress) backupProgress.hidden = true;
       const backupLog = $('#svm-backup-log'); if (backupLog) log(backupLog, result.pending ? __('Deletion queued. The active backup batch will stop and remove its temporary files.', 'uwh-site-migrator') : (result.already_missing ? __('Temporary backup record cleared.', 'uwh-site-migrator') : __('Backup and its temporary job files were deleted.', 'uwh-site-migrator')));
       if (result.pending) { b.disabled = false; b.textContent = __('Check deletion', 'uwh-site-migrator'); }

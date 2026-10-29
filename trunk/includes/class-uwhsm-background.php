@@ -63,9 +63,12 @@ final class UWHSM_Background {
      * in frontend requests or bypassing the engine's exclusive backup lock.
      */
     public static function watchdog() {
-        if (is_multisite() || wp_doing_ajax() || (function_exists('wp_doing_cron') && wp_doing_cron())) {
+        if (is_multisite() || wp_doing_ajax()) {
             return;
         }
+        // A real server cron / WP-CLI process is often the only request on
+        // low-traffic sites. Permit the lightweight watchdog there too so lost
+        // backup events are repaired without waiting for a frontend visit.
         // Avoid modifying wp_options while a destructive restore is active.
         if (get_option('uwhsm_restore_guard', false)) {
             return;
@@ -79,6 +82,10 @@ final class UWHSM_Background {
         foreach ($jobs as $job => $saved) {
             $state = $engine->background_state((string) $job);
             $b = $state['background'] ?? array();
+            if ($engine->backup_is_paused((string) $job)) {
+                wp_clear_scheduled_hook(self::HOOK, array((string) $job));
+                continue;
+            }
             if (!$state || empty($b['enabled']) || !hash_equals(self::binding((string) $job), (string) ($b['binding'] ?? ''))) {
                 wp_clear_scheduled_hook(self::HOOK, array((string) $job));
                 unset($jobs[$job]);
@@ -221,9 +228,18 @@ final class UWHSM_Background {
     public static function tick($job) {
         $engine = UWHSM_Engine::instance();
         $started = microtime(true);
+        // The CLI process is initiated by a real hosting cron, typically once
+        // per minute. Use more of that minute for backup batches so unattended
+        // throughput approaches the open-tab browser runner. HTTP cron stays
+        // conservative to avoid a shared hosting reverse-proxy timeout.
+        $max_work_seconds = (defined('WP_CLI') && WP_CLI) ? 42 : 21;
         do {
             $s = $engine->background_state($job);
             $b = $s['background'] ?? array();
+            if ($engine->backup_is_paused($job)) {
+                wp_clear_scheduled_hook(self::HOOK, array($job));
+                return;
+            }
             if (!$s || empty($b['enabled']) || !hash_equals(self::binding($job), (string) ($b['binding'] ?? ''))) {
                 wp_clear_scheduled_hook(self::HOOK, array($job));
                 self::remember_job($job, false);
@@ -247,6 +263,16 @@ final class UWHSM_Background {
                     $result = $engine->run_backup_batch($job, 'cron');
                     if (!empty($result['busy'])) {
                         return;
+                    }
+                    if (!empty($result['blocked'])) {
+                        // Three automatic per-file attempts have finished.
+                        // Suspend unattended processing until the admin explicitly
+                        // confirms a partial backup, rather than looping forever.
+                        $next['enabled'] = false;
+                        $next['error'] = '';
+                        $next['retry_at'] = 0;
+                        $next['failures'] = 0;
+                        UWHSM_Logger::log_once('backup-await-skip-' . $job, 'backup', 'warning', __('Automatic file retries failed. An administrator may skip the identified Site Migrator PHP file and resume a partial backup.', 'uwh-site-migrator'), array('job' => $job, 'file' => (string) ($result['skip_candidate'] ?? '')), 3600);
                     }
                     $next['failures'] = 0;
                     $next['error'] = '';
@@ -285,7 +311,7 @@ final class UWHSM_Background {
             if ($next['failures'] || time() < ($next['retry_at'] ?? 0)) {
                 return;
             }
-        } while (microtime(true) - $started < 21);
+        } while (microtime(true) - $started < $max_work_seconds);
     }
 
     public static function describe(array $j) {

@@ -120,7 +120,7 @@ final class UWHSM_Engine {
         $this->import_dir = $this->base . '/imports';
         $this->checkpoint_dir = $this->base . '/checkpoints';
         $this->ensure_dirs();
-        foreach (array('uwhsm_backup_start', 'uwhsm_backup_step', 'uwhsm_backup_status', 'uwhsm_backup_cancel', 'uwhsm_upload_start', 'uwhsm_upload_chunk', 'uwhsm_restore_start', 'uwhsm_restore_local_start', 'uwhsm_restore_checkpoint_finish', 'uwhsm_restore_recover', 'uwhsm_restore_cancel', 'uwhsm_restore_step', 'uwhsm_restore_status', 'uwhsm_checkpoint_rollback_start', 'uwhsm_checkpoint_delete', 'uwhsm_delete_backup') as $action) {
+        foreach (array('uwhsm_backup_start', 'uwhsm_backup_step', 'uwhsm_backup_status', 'uwhsm_backup_cancel', 'uwhsm_backup_pause', 'uwhsm_backup_choose', 'uwhsm_backup_skip_blocked_file', 'uwhsm_upload_start', 'uwhsm_upload_chunk', 'uwhsm_restore_start', 'uwhsm_restore_local_start', 'uwhsm_restore_checkpoint_finish', 'uwhsm_restore_recover', 'uwhsm_restore_cancel', 'uwhsm_restore_step', 'uwhsm_restore_status', 'uwhsm_checkpoint_rollback_start', 'uwhsm_checkpoint_delete', 'uwhsm_delete_backup') as $action) {
             add_action('wp_ajax_' . $action, array($this, $action));
         }
 
@@ -780,9 +780,10 @@ final class UWHSM_Engine {
             wp_mkdir_p($db_stage);
 
             // Ekhane force delivery 'drive' kora hocche ebong 'is_auto' flag deya hocche
-            $state = array('type' => 'backup', 'job' => $job, 'phase' => 'files', 'delivery' => 'drive', 'is_auto' => true, 'delivery_status' => 'pending', 'zip' => $zip_path, 'db_stage' => $db_stage, 'name' => $name, 'files' => $files, 'file_index' => 0, 'file_bytes' => $file_bytes, 'file_bytes_done' => 0, 'database_bytes' => $db_bytes, 'database_rows_total' => $db_stats['rows'], 'tables' => $tables, 'table_index' => 0, 'row_offset' => 0, 'rows_done' => 0, 'inventory' => array(), 'table_rows' => array(), 'total_units' => max(1, count($files)+count($tables)*3), 'done_units' => 0, 'created' => time());
+            $state = array('type' => 'backup', 'job' => $job, 'phase' => 'files', 'delivery' => 'drive', 'is_auto' => true, 'delivery_status' => 'pending', 'zip' => $zip_path, 'db_stage' => $db_stage, 'name' => $name, 'files' => $files, 'file_index' => 0, 'file_bytes' => $file_bytes, 'file_bytes_done' => 0, 'database_bytes' => $db_bytes, 'database_rows_total' => $db_stats['rows'], 'tables' => $tables, 'table_index' => 0, 'row_offset' => 0, 'rows_done' => 0, 'inventory' => array(), 'table_rows' => array(), 'required_media' => $this->backup_required_branding_files((array) ($manifest['branding_media'] ?? array())), 'total_units' => max(1, count($files)+count($tables)*3), 'done_units' => 0, 'created' => time());
 
             $this->write_state($job, $state);
+            $this->select_backup_job($job, false);
             UWHSM_Logger::log('backup', 'started', __('Scheduled backup started.', 'uwh-site-migrator'), array('job' => $job, 'backup' => $name, 'delivery' => 'drive'));
 
             // A scheduled backup has no browser tab to keep calling uwhsm_backup_step().
@@ -857,6 +858,14 @@ final class UWHSM_Engine {
 
     private function cancel_path($job) {
         return $this->base . '/cancel-' . sanitize_file_name($job) . '.flag';
+    }
+
+    private function backup_pause_path($job) {
+        return $this->base . '/pause-' . sanitize_file_name($job) . '.flag';
+    }
+
+    public function backup_is_paused($job) {
+        return $this->safe_id((string) $job) && is_file($this->backup_pause_path($job));
     }
 
     private function lock_path($job) {
@@ -1405,8 +1414,29 @@ final class UWHSM_Engine {
         return array('job' => $job, 'name' => $name);
     }
 
+    /**
+     * Select the append-only writer only at creation of a NEW manual backup.
+     * A saved job's immutable zip_writer field governs all subsequent batches,
+     * so Resume never silently switches from ZipArchive to stream-v1.
+     */
+    private function backup_stream_opt_in() {
+        $requested = (defined('UWHSM_EXPERIMENTAL_STREAM_ZIP') && true === (bool) UWHSM_EXPERIMENTAL_STREAM_ZIP)
+            || '1' === (string) UWHSM_Compat::post_value('fast_zip');
+        if (!$requested) {
+            return false;
+        }
+        if (PHP_INT_SIZE < 8 || !function_exists('deflate_init') || !class_exists('UWHSM_Stream_Zip') || !class_exists('ZipArchive')) {
+            throw new RuntimeException(esc_html__('Fast ZIP requires 64-bit PHP, ZipArchive and the zlib streaming extension. Uncheck Fast ZIP to use the standard engine.', 'uwh-site-migrator'));
+        }
+        return true;
+    }
+
     public function uwhsm_backup_start() {
         $this->guard();
+        if ($this->selected_backup_job()) {
+            $this->fail(__('An unfinished backup is selected. Resume or stop it, or choose another temporary backup before creating a new one.', 'uwh-site-migrator'), 409);
+            return;
+        }
         if (!class_exists('ZipArchive')) {
             $this->fail(__('PHP ZipArchive is not enabled.', 'uwh-site-migrator'));
         }
@@ -1440,10 +1470,7 @@ final class UWHSM_Engine {
 
             $name = $this->clean_backup_name($prefix);
             $zip_path = $this->backup_dir . '/' . $name;
-            $zip = new ZipArchive();
-            if (true !== $zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
-                throw new RuntimeException(__('Could not create the backup archive. Check disk space and permissions.', 'uwh-site-migrator'));
-            }
+            $stream_mode = $this->backup_stream_opt_in();
             $tables = $this->collect_tables();
             $source_theme_settings = $this->source_active_theme_settings();
             $manifest = array(
@@ -1452,8 +1479,19 @@ final class UWHSM_Engine {
                 'content_dir' => untrailingslashit(UWHSM_Paths::content_root()), 'plugins_dir' => untrailingslashit(UWHSM_Paths::plugin_root()), 'uploads_dir' => untrailingslashit(UWHSM_Paths::upload_root()), 'content_url' => content_url(), 'plugins_url' => plugins_url(), 'uploads_url' => UWHSM_Paths::upload_url(), 'table_prefix' => $GLOBALS['wpdb']->prefix, 'database_scope' => 'wordpress_prefix_tables', 'database_tables' => $tables,
                 'wp_version' => get_bloginfo('version'), 'php_version' => PHP_VERSION, 'generator_version' => UWHSM_VERSION, 'active_plugins' => get_option('active_plugins', array()), 'active_theme_stylesheet' => $source_theme_settings['stylesheet'], 'active_theme_template' => $source_theme_settings['template'], 'front_page_settings' => $this->source_front_page_settings(), 'site_identity_settings' => $this->source_site_identity(), 'branding_media' => $this->source_branding_media($source_theme_settings['stylesheet']), 'builder_template_ids' => $this->source_builder_templates(),
             );
-            $zip->addFromString('manifest.json', wp_json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            $zip->close();
+            $manifest_json = wp_json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($stream_mode) {
+                $stream = UWHSM_Stream_Zip::begin($zip_path, $zip_path . '.entries', $manifest_json);
+            } else {
+                $zip = new ZipArchive();
+                if (true !== $zip->open($zip_path, ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
+                    throw new RuntimeException(__('Could not create the backup archive. Check disk space and permissions.', 'uwh-site-migrator'));
+                }
+                $zip->addFromString('manifest.json', $manifest_json);
+                if (!$zip->close()) {
+                    throw new RuntimeException(__('Could not close initial backup manifest.', 'uwh-site-migrator'));
+                }
+            }
             $files = $this->collect_files();
         $this->verify_branding_inventory((array) ($manifest['branding_media'] ?? array()), $files);
             $file_bytes = 0;
@@ -1477,18 +1515,57 @@ final class UWHSM_Engine {
                 ));
             }
             $db_stage = $this->base . '/db-' . $job;
-            wp_mkdir_p($db_stage);
-            $state = array('type' => 'backup', 'job' => $job, 'phase' => 'files', 'delivery' => $delivery, 'delivery_status' => 'local' === $delivery?'local':'pending', 'zip' => $zip_path, 'db_stage' => $db_stage, 'name' => $name, 'files' => $files, 'file_index' => 0, 'file_bytes' => $file_bytes, 'file_bytes_done' => 0, 'database_bytes' => $db_bytes, 'database_rows_total' => $db_stats['rows'], 'tables' => $tables, 'table_index' => 0, 'row_offset' => 0, 'rows_done' => 0, 'inventory' => array(), 'table_rows' => array(), 'total_units' => max(1, count($files)+count($tables)*3), 'done_units' => 0, 'created' => time());
+            if (!wp_mkdir_p($db_stage) || !is_dir($db_stage) || !wp_is_writable($db_stage)) {
+                throw new RuntimeException(__('Cannot create a writable private database staging directory. Check Site Migrator storage permissions.', 'uwh-site-migrator'));
+            }
+            $state = array('type' => 'backup', 'job' => $job, 'phase' => 'files', 'delivery' => $delivery, 'delivery_status' => 'local' === $delivery?'local':'pending', 'zip' => $zip_path, 'db_stage' => $db_stage, 'name' => $name, 'files' => $files, 'file_index' => 0, 'file_bytes' => $file_bytes, 'file_bytes_done' => 0, 'database_bytes' => $db_bytes, 'database_rows_total' => $db_stats['rows'], 'tables' => $tables, 'table_index' => 0, 'row_offset' => 0, 'rows_done' => 0, 'inventory' => array(), 'table_rows' => array(), 'required_media' => $this->backup_required_branding_files((array) ($manifest['branding_media'] ?? array())), 'total_units' => max(1, count($files)+count($tables)*3), 'done_units' => 0, 'created' => time());
+            // Persist writer selection atomically with the initial file progress.
+            // Without these fields a streaming ZIP would be reopened by ZipArchive,
+            // rewriting it or failing before it has a central directory.
+            if ($stream_mode) {
+                $state['zip_writer'] = 'stream-v1';
+                $state['stream_offset'] = (int) $stream['offset'];
+                $state['stream_journal_bytes'] = (int) $stream['journal_bytes'];
+            }
             $this->write_state($job, $state);
+            $this->select_backup_job($job, false);
             UWHSM_Logger::log('backup', 'started', __('Backup started.', 'uwh-site-migrator'), array('job' => $job, 'backup' => $name, 'delivery' => $delivery));
         } catch (Throwable $e) {
             if (!empty($zip_path)) {
                 wp_delete_file($zip_path);
+                if (is_file($zip_path . '.entries') && !is_link($zip_path . '.entries')) {
+                    wp_delete_file($zip_path . '.entries');
+                }
+            }
+            // A failed backup start must not leave an orphan staging directory.
+            // Only remove the newly generated, job-specific path below our private root.
+            if (!empty($job) && !empty($db_stage) && $db_stage === $this->base . '/db-' . $job && is_dir($db_stage) && !is_link($db_stage)) {
+                try {
+                    $this->remove_tree($db_stage);
+                } catch (Throwable $cleanup_error) {
+                    UWHSM_Logger::log('backup', 'warning', __('Failed backup start left temporary database files to clean up.', 'uwh-site-migrator'), array('job' => $job));
+                }
             }
             UWHSM_Logger::log('backup', 'failed', __('Backup could not start.', 'uwh-site-migrator'), array('job' => (string) ($job ?? ''), 'backup' => (string) ($name ?? ''), 'delivery' => $delivery, 'error' => $e->getMessage()));
             $this->fail($e->getMessage(), 500);
         }
-        wp_send_json_success(array('job' => $job, 'done' => false, 'progress' => 1, 'label' => __('Scanning website files', 'uwh-site-migrator'), 'delivery' => $delivery));
+        // Schedule the unattended worker *within this authenticated start request*,
+        // rather than depending on a second browser AJAX call. If the administrator
+        // closes the tab immediately, real server cron can still advance the saved job.
+        // A cron failure must never remove the newly created, resumable backup.
+        $background_requested = '1' === (string) UWHSM_Compat::post_value('background');
+        $background_enabled = false;
+        $background_warning = '';
+        if ($background_requested && class_exists('UWHSM_Background')) {
+            try {
+                UWHSM_Background::set_enabled($job, true);
+                $background_enabled = true;
+            } catch (Throwable $background_error) {
+                $background_warning = __('Unattended processing could not be scheduled. This saved backup will continue in the open tab; configure hosting cron to keep it running without visitors.', 'uwh-site-migrator');
+                UWHSM_Logger::log('schedule', 'warning', $background_warning, array('job' => $job, 'reason' => $background_error->getMessage()));
+            }
+        }
+        wp_send_json_success(array('job' => $job, 'done' => false, 'progress' => 1, 'label' => __('Scanning website files', 'uwh-site-migrator'), 'delivery' => $delivery, 'background_enabled' => $background_enabled, 'background_warning' => $background_warning));
     }
 
     private function collect_files() {
@@ -1497,9 +1574,24 @@ final class UWHSM_Engine {
         return UWHSM_Paths::files($this->base, function($relative) { return $this->is_ephemeral_file($relative); });
     }
 
+    /**
+     * WooCommerce runtime logs are not site data. The logger can rotate or
+     * remove one between ZipArchive::addFile() and ZipArchive::close(), because
+     * libzip only reads the bytes when the archive is closed. Skip these exact
+     * .log paths in new inventories AND older saved file lists so Resume does
+     * not repeatedly fail at the same vanished log.
+     */
+    private function is_woocommerce_runtime_log($relative) {
+        $relative = ltrim(wp_normalize_path((string) $relative), '/');
+        return (bool) preg_match('#^wp-content/uploads/(?:wc-logs|woocommerce-logs)/[^/]+\.log$#iD', $relative);
+    }
+
     private function is_ephemeral_file($relative) {
         $relative = wp_normalize_path((string) $relative);
         $name = basename($relative);
+        if ($this->is_woocommerce_runtime_log($relative)) {
+            return true;
+        }
         // Apply the same guard to file inventories captured by an older
         // incomplete backup job before this release was installed.
         if (UWHSM_Paths::is_suspicious_sc_loader_path($relative)
@@ -1556,6 +1648,309 @@ final class UWHSM_Engine {
         wp_send_json_success($result);
     }
     /** Authenticated, read-only progress endpoint; state lives on the server, not the browser. */
+    /** All regular unfinished backups are discoverable even if background cron was never enabled. */
+    private function unfinished_ordinary_backup_states() {
+        $states = array();
+        foreach ((array) glob($this->base . '/job-*.json') as $path) {
+            if (is_link($path) || !is_file($path)) {
+                continue;
+            }
+            $job = substr(basename($path), 4, -5);
+            if (!$this->safe_id($job)) {
+                continue;
+            }
+            $state = $this->read_state($job);
+            if (is_array($state) && 'backup' === ($state['type'] ?? '')
+                && 'checkpoint' !== ($state['purpose'] ?? 'backup')
+                && 'done' !== ($state['phase'] ?? '')
+                && hash_equals($job, (string) ($state['job'] ?? ''))) {
+                $states[$job] = $state;
+            }
+        }
+        return $states;
+    }
+
+    /** Only one ordinary backup may be selected for processing across tabs and WP-Cron. */
+    public function selected_backup_job() {
+        $job = get_option('uwhsm_selected_backup_job', '');
+        if (!$this->safe_id($job)) {
+            return '';
+        }
+        $state = $this->read_state($job);
+        return is_array($state) && 'backup' === ($state['type'] ?? '')
+            && 'checkpoint' !== ($state['purpose'] ?? 'backup')
+            && 'done' !== ($state['phase'] ?? '') ? $job : '';
+    }
+
+    private function release_selected_backup($job) {
+        if ($job && get_option('uwhsm_selected_backup_job', '') === $job) {
+            delete_option('uwhsm_selected_backup_job');
+        }
+    }
+
+    /** Changes selection only after confirming no other archive batch holds a writer lock. */
+    public function select_backup_job($job, $switch = false) {
+        $states = $this->unfinished_ordinary_backup_states();
+        if (!isset($states[$job])) {
+            throw new RuntimeException(esc_html__('The saved backup job cannot be resumed. Delete its temporary file if it is no longer needed.', 'uwh-site-migrator'));
+        }
+        $state = $states[$job];
+        if (!hash_equals($this->backup_dir . '/' . (string) ($state['name'] ?? ''), (string) ($state['zip'] ?? ''))
+            || !$this->valid_backup_name((string) ($state['name'] ?? '')) || !is_file($state['zip']) || is_link($state['zip'])
+            || is_file($this->cancel_path($job))) {
+            throw new RuntimeException(esc_html__('The temporary archive is unavailable, unsafe, or already stopping. Resume was blocked.', 'uwh-site-migrator'));
+        }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native exclusive lock coordinates multiple admin tabs and cron workers.
+        $global = @fopen($this->base . '/backup-selection.lock', 'c');
+        if (!$global || !@flock($global, LOCK_EX | LOCK_NB)) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
+            if ($global) { @fclose($global); }
+            throw new RuntimeException(esc_html__('Another backup selection is being processed. Try again in a moment.', 'uwh-site-migrator'));
+        }
+        try {
+            $selected = $this->selected_backup_job();
+            if ($selected && $selected !== $job && !$switch) {
+                throw new RuntimeException(__('Another unfinished backup is selected. Resume or stop it, or explicitly choose a different temporary backup.', 'uwh-site-migrator'));
+            }
+            // Hold no other job's lock while modifying its background flag; first
+            // verify that all other jobs have finished their currently running batch.
+            foreach ($states as $other_job => $other) {
+                if ($other_job === $job) { continue; }
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native lock is required to detect a running ZIP writer.
+                $handle = @fopen($this->lock_path($other_job), 'c');
+                if (!$handle || !@flock($handle, LOCK_EX | LOCK_NB)) {
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
+                    if ($handle) { @fclose($handle); }
+                    throw new RuntimeException(__('Another backup batch is still writing. Retry selection once that batch finishes.', 'uwh-site-migrator'));
+                }
+                @flock($handle, LOCK_UN);
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
+                @fclose($handle);
+            }
+            foreach ($states as $other_job => $other) {
+                if ($other_job === $job) { continue; }
+                if (class_exists('UWHSM_Background')) {
+                    wp_clear_scheduled_hook(UWHSM_Background::HOOK, array($other_job));
+                }
+                if (!empty($other['background']['enabled'])) {
+                    $other['background']['enabled'] = false;
+                    $other['background']['error'] = '';
+                    $this->write_state($other_job, $other);
+                }
+            }
+            update_option('uwhsm_selected_backup_job', $job, false);
+        } finally {
+            @flock($global, LOCK_UN);
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
+            @fclose($global);
+        }
+        return $this->safe_backup_status($this->read_state($job));
+    }
+
+    /** Pause only an unfinished ordinary backup. Never delete its archive or saved state. */
+    public function uwhsm_backup_pause() {
+        $this->guard();
+        $job = UWHSM_Compat::post_value('job');
+        if (!$this->safe_id($job)) {
+            $this->fail(__('Invalid backup job ID.', 'uwh-site-migrator'), 400);
+            return;
+        }
+        try {
+            $state = $this->background_state($job);
+            if (!is_array($state) || 'checkpoint' === ($state['purpose'] ?? 'backup')
+                || 'done' === ($state['phase'] ?? '') || is_file($this->cancel_path($job))) {
+                throw new RuntimeException(__('Only an unfinished ordinary backup can be paused.', 'uwh-site-migrator'));
+            }
+            if ($this->selected_backup_job() !== $job) {
+                throw new RuntimeException(__('This backup is not the currently selected backup.', 'uwh-site-migrator'));
+            }
+            // A durable marker stops the next batch even when the current batch
+            // owns the ZIP lock. An in-flight batch may finish safely first.
+            if (is_link($this->backup_pause_path($job))) {
+                throw new RuntimeException(__('Unsafe backup pause marker. Check private storage permissions.', 'uwh-site-migrator'));
+            }
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Atomic admin-controlled job pause marker; not a public filesystem path.
+            if (false === @file_put_contents($this->backup_pause_path($job), '1', LOCK_EX)) {
+                throw new RuntimeException(__('Could not save the backup pause request. Check storage permissions.', 'uwh-site-migrator'));
+            }
+            if (class_exists('UWHSM_Background')) {
+                wp_clear_scheduled_hook(UWHSM_Background::HOOK, array($job));
+            }
+            UWHSM_Logger::log('backup', 'info', __('Backup paused by an administrator. Archive and database progress were kept.', 'uwh-site-migrator'), array('job' => $job));
+            wp_send_json_success(array('job' => $job, 'paused' => true, 'message' => __('Backup paused. Resume backup to continue from saved progress.', 'uwh-site-migrator')));
+        } catch (Throwable $e) {
+            $this->fail($e->getMessage(), 409);
+        }
+    }
+
+    public function uwhsm_backup_choose() {
+        $this->guard();
+        $job = UWHSM_Compat::post_value('job');
+        if (!$this->safe_id($job)) {
+            $this->fail(__('Invalid backup ID.', 'uwh-site-migrator'), 400);
+            return;
+        }
+        try {
+            $result = $this->select_backup_job($job, true);
+            if ($this->backup_is_paused($job)) {
+                // The pause marker is removed only after selecting a valid saved job.
+                $this->remove_managed_backup_artifact($this->backup_pause_path($job), __('Could not clear the backup pause marker.', 'uwh-site-migrator'));
+                if (class_exists('UWHSM_Background') && !empty($result['background_enabled'])) {
+                    try { UWHSM_Background::set_enabled($job, true); } catch (Throwable $ignored) { /* Foreground resume still works. */ }
+                }
+                $result = $this->safe_backup_status($this->read_state($job));
+            }
+            // Selecting a previous manual backup can also opt into unattended
+            // processing. Preserve the saved archive and progress regardless of
+            // whether the current browser remains open.
+            if ('1' === (string) UWHSM_Compat::post_value('background') && class_exists('UWHSM_Background')) {
+                try {
+                    UWHSM_Background::set_enabled($job, true);
+                } catch (Throwable $background_error) {
+                    UWHSM_Logger::log('schedule', 'warning', __('Unattended backup resume could not be scheduled.', 'uwh-site-migrator'), array('job' => $job, 'reason' => $background_error->getMessage()));
+                }
+            }
+            UWHSM_Logger::log('backup', 'info', __('An administrator selected an unfinished backup for resuming.', 'uwh-site-migrator'), array('job' => $job));
+            wp_send_json_success(array('job' => $result));
+        } catch (Throwable $e) {
+            $this->fail($e->getMessage(), 409);
+        }
+    }
+
+    /**
+     * An explicit administrator override is limited to Site Migrator's own
+     * PHP code and JavaScript/CSS assets. All are required for a complete
+     * plugin installation, so approval creates a visibly PARTIAL backup.
+     * WordPress core, active theme, other plugins, and safety checkpoints
+     * must never be skipped by this override.
+     */
+    private function backup_admin_skip_candidate(array $s) {
+        if ('backup' !== ($s['type'] ?? '') || 'files' !== ($s['phase'] ?? '')
+            || 'checkpoint' === ($s['purpose'] ?? 'backup')) {
+            return false;
+        }
+        $index = (int) ($s['file_index'] ?? -1);
+        if ($index < 0 || !isset($s['files'][$index]) || !is_array($s['files'][$index])) {
+            return false;
+        }
+        $file = $s['files'][$index];
+        $rel = ltrim(wp_normalize_path((string) ($file['rel'] ?? '')), '/');
+        $is_own_php = (bool) preg_match('#^wp-content/plugins/uwh-site-migrator/[a-zA-Z0-9_./-]+\.php$#D', $rel);
+        $is_own_asset = (bool) preg_match('#^wp-content/plugins/uwh-site-migrator/assets/[a-zA-Z0-9_./-]+\.(?:js|css)$#D', $rel);
+        if (strpos($rel, '..') !== false || (!$is_own_php && !$is_own_asset)) {
+            return false;
+        }
+        $entry = 'site/' . $rel;
+        // Never offer omission of a file already committed to the package.
+        if (isset($s['inventory'][$entry])) {
+            return false;
+        }
+        $blocked = $s['backup_blocked_file'] ?? array();
+        if (is_array($blocked) && (int) ($blocked['index'] ?? -1) === $index
+            && hash_equals($rel, (string) ($blocked['rel'] ?? ''))) {
+            return array('file' => $file, 'reason' => (string) ($blocked['reason'] ?? ''));
+        }
+        // Existing v2.4.15 jobs may have saved the error in background state
+        // before the blocker marker feature existed. Only trust an exact failed
+        // current file path, never a filename supplied by the browser.
+        $error = (string) ($s['background']['error'] ?? '');
+        if (strpos($error, $rel) !== false
+            && (strpos($error, 'Required website file could not be read after 3 attempts:') !== false
+                || strpos($error, 'Could not add required file after 3 attempts:') !== false)) {
+            return array('file' => $file, 'reason' => $error);
+        }
+        return false;
+    }
+
+    /** Administrator-approved partial backup. One file only; no broad bypass. */
+    public function uwhsm_backup_skip_blocked_file() {
+        $this->guard();
+        $job = UWHSM_Compat::post_value('job');
+        if (!$this->safe_id($job)) {
+            $this->fail(__('Invalid backup job ID.', 'uwh-site-migrator'), 400);
+            return;
+        }
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Same advisory writer lock as backup ZIP batches.
+        $lock = @fopen($this->lock_path($job), 'c');
+        if (!$lock) {
+            $this->fail(__('Could not obtain the backup writer lock.', 'uwh-site-migrator'), 409);
+            return;
+        }
+        $locked = @flock($lock, LOCK_EX | LOCK_NB);
+        if (!$locked) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
+            @fclose($lock);
+            $this->fail(__('A backup batch is still running. Try Skip again after it finishes.', 'uwh-site-migrator'), 409);
+            return;
+        }
+        $error = '';
+        $result = null;
+        $restart_background = false;
+        try {
+            $s = $this->read_state($job);
+            if (!is_array($s) || $this->selected_backup_job() !== $job
+                || $this->backup_is_paused($job) || is_file($this->cancel_path($job))) {
+                throw new RuntimeException(__('Select and resume the unfinished backup before skipping its blocked file.', 'uwh-site-migrator'));
+            }
+            $candidate = $this->backup_admin_skip_candidate($s);
+            if (!$candidate) {
+                throw new RuntimeException(__('No eligible blocked Site Migrator file was found. WordPress core, themes and other plugins cannot be skipped.', 'uwh-site-migrator'));
+            }
+            $f = $candidate['file'];
+            $rel = (string) $f['rel'];
+            $entry = 'site/' . $rel;
+            if (isset($s['inventory'][$entry])) {
+                throw new RuntimeException(__('The file is already part of this backup; skipping is not allowed.', 'uwh-site-migrator'));
+            }
+            // No ZIP mutation: failed checksum occurs before ZipArchive::addFile.
+            // The verified current entry is not queued in the archive. Only
+            // advance the committed cursor, preserving every prior batch.
+            $s['file_index'] = (int) $s['file_index'] + 1;
+            $s['file_bytes_done'] = (int) ($s['file_bytes_done'] ?? 0) + (int) ($f['size'] ?? 0);
+            $s['done_units'] = (int) ($s['done_units'] ?? 0) + 1;
+            if (!isset($s['skipped_files']) || !is_array($s['skipped_files'])) { $s['skipped_files'] = array(); }
+            if (!in_array($entry, $s['skipped_files'], true)) { $s['skipped_files'][] = $entry; }
+            if (!isset($s['warnings']) || !is_array($s['warnings'])) { $s['warnings'] = array(); }
+            $s['warnings'][] = sprintf(
+                /* translators: %s: manually excluded plugin file path. */
+                __('Administrator explicitly skipped required plugin file: %s. This is a PARTIAL backup. Reinstall UWH Site Migrator after restoring it.', 'uwh-site-migrator'),
+                $rel
+            );
+            // Capture the saved background intent before clearing the blocker;
+            // a skipped file may resume unattended only with the original admin choice.
+            $was_background_enabled = !empty($s['backup_blocked_file']['background_was_enabled']);
+            unset($s['backup_blocked_file']);
+            if (isset($s['background']) && is_array($s['background'])) {
+                $restart_background = $was_background_enabled
+                    || (empty($s['background']['enabled']) && (int) ($s['background']['failures'] ?? 0) >= 8);
+                $s['background']['error'] = '';
+                $s['background']['failures'] = 0;
+                $s['background']['retry_at'] = 0;
+            }
+            $this->write_state($job, $s);
+            UWHSM_Logger::log('backup', 'warning', __('Administrator skipped one required Site Migrator file. The backup is partial; reinstall Site Migrator after restoring it.', 'uwh-site-migrator'), array('job' => $job, 'file' => $rel, 'reason' => (string) $candidate['reason']));
+            $result = array('job' => $job, 'file' => $rel, 'skipped' => true, 'status' => $this->safe_backup_status($s));
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        } finally {
+            @flock($lock, LOCK_UN);
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Backup writer lock.
+            @fclose($lock);
+        }
+        if ('' !== $error) {
+            $this->fail($error, 409);
+            return;
+        }
+        if ($restart_background && class_exists('UWHSM_Background')) {
+            try {
+                UWHSM_Background::set_enabled($job, true);
+            } catch (Throwable $e) {
+                UWHSM_Logger::log('schedule', 'warning', __('The selected file was skipped, but unattended backup could not restart automatically. Resume in the admin page or configure server cron.', 'uwh-site-migrator'), array('job' => $job, 'error' => $e->getMessage()));
+            }
+        }
+        wp_send_json_success($result);
+    }
+
     public function uwhsm_backup_status() {
         $this->guard();
         $job = UWHSM_Compat::post_value('job');
@@ -1569,16 +1964,13 @@ final class UWHSM_Engine {
             return;
         }
         $rows = array();
-        foreach ($this->background_jobs() as $item) {
-            $state = $this->background_state($item['job']);
-            if ($state) {
-                $rows[] = $this->safe_backup_status($state);
-            }
+        foreach ($this->unfinished_ordinary_backup_states() as $state) {
+            $rows[] = $this->safe_backup_status($state);
         }
         usort($rows, static function($a, $b) {
             return $b['created'] <=> $a['created'];
         });
-        wp_send_json_success(array('jobs' => array_slice($rows, 0, 5)));
+        wp_send_json_success(array('jobs' => array_slice($rows, 0, 100), 'selected' => $this->selected_backup_job()));
     }
 
     private function safe_backup_status(array $s) {
@@ -1587,6 +1979,8 @@ final class UWHSM_Engine {
         $scheduled = !empty($b['enabled']) && (bool) wp_next_scheduled(UWHSM_Background::HOOK, array($s['job']));
         return array(
             'job' => (string) $s['job'],
+            'selected' => $this->selected_backup_job() === (string) $s['job'],
+            'paused' => $this->backup_is_paused((string) $s['job']),
             'name' => (string) ($s['name'] ?? ''),
             'phase' => (string) ($s['phase'] ?? ''),
             'created' => (int) ($s['created'] ?? 0),
@@ -1599,6 +1993,10 @@ final class UWHSM_Engine {
             'last_tick' => (int) ($b['last_tick'] ?? 0),
             'last_activity' => max((int) ($b['last_tick'] ?? 0), (int) ($b['last_foreground_batch'] ?? 0)),
             'error' => (string) ($b['error'] ?? ''),
+            'warnings' => count($s['warnings'] ?? array()),
+            'skipped_files' => count($s['skipped_files'] ?? array()),
+            'skip_candidate' => ($skip_candidate = $this->backup_admin_skip_candidate($s)) ? (string) $skip_candidate['file']['rel'] : '',
+            'blocked' => (bool) $skip_candidate,
             'delivery' => (string) ($s['delivery'] ?? 'local'),
         );
     }
@@ -1610,12 +2008,12 @@ final class UWHSM_Engine {
      */
     private function remove_managed_backup_artifact($path, $message) {
         if (is_link($path)) {
-            throw new RuntimeException(__('A temporary backup path is a symlink; cleanup was stopped for safety.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('A temporary backup path is a symlink; cleanup was stopped for safety.', 'uwh-site-migrator'));
         }
         if (is_file($path)) {
             wp_delete_file($path);
             if (is_file($path) || is_link($path)) {
-                throw new RuntimeException($message);
+                throw new RuntimeException(esc_html($message));
             }
         }
     }
@@ -1628,40 +2026,46 @@ final class UWHSM_Engine {
     private function cleanup_cancelled_backup_locked($job, array $state) {
         if ('backup' !== ($state['type'] ?? '') || 'checkpoint' === ($state['purpose'] ?? 'backup')
             || 'done' === ($state['phase'] ?? '') || !hash_equals((string) ($state['job'] ?? ''), (string) $job)) {
-            throw new RuntimeException(__('Only an unfinished ordinary backup can be stopped.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('Only an unfinished ordinary backup can be stopped.', 'uwh-site-migrator'));
         }
         // Never trust state-derived arbitrary paths when deleting files.
         $zip = (string) ($state['zip'] ?? '');
         $name = (string) ($state['name'] ?? '');
         if (!$this->valid_backup_name($name) || $zip !== $this->backup_dir . '/' . $name) {
-            throw new RuntimeException(__('Backup path verification failed; no files were deleted.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('Backup path verification failed; no files were deleted.', 'uwh-site-migrator'));
         }
         if (class_exists('UWHSM_Site_Transfer') && UWHSM_Site_Transfer::backup_is_shared($name)) {
-            throw new RuntimeException(__('This backup is shared by an active migration key. Revoke the key before stopping it.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('This backup is shared by an active migration key. Revoke the key before stopping it.', 'uwh-site-migrator'));
         }
         $db_stage = (string) ($state['db_stage'] ?? '');
         if ($db_stage !== '' && is_link($db_stage)) {
-            throw new RuntimeException(__('Unsafe temporary database path; no files were deleted.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('Unsafe temporary database path; no files were deleted.', 'uwh-site-migrator'));
         }
         if ($db_stage !== '' && $db_stage !== $this->base . '/db-' . $job) {
-            throw new RuntimeException(__('Temporary database path verification failed; no files were deleted.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('Temporary database path verification failed; no files were deleted.', 'uwh-site-migrator'));
         }
         if ($db_stage !== '' && is_dir($db_stage)) {
             $this->remove_tree($db_stage);
             if (is_dir($db_stage)) {
-                throw new RuntimeException(__('Could not remove temporary database files. Check folder permissions and retry Stop.', 'uwh-site-migrator'));
+                throw new RuntimeException(esc_html__('Could not remove temporary database files. Check folder permissions and retry Stop.', 'uwh-site-migrator'));
             }
         }
         // Delete the incomplete archive first. The cancellation marker remains
         // durable until the state and sidecar files are confirmed deleted.
         $this->remove_managed_backup_artifact($zip, __('Could not remove the incomplete archive. Check permissions and retry Stop.', 'uwh-site-migrator'));
         $this->remove_managed_backup_artifact($zip . '.json', __('Could not remove the incomplete archive metadata. Check file permissions and retry Stop.', 'uwh-site-migrator'));
+        // Also clean orphan journals from the early experimental build that
+        // created a stream but failed to persist zip_writer in saved state.
+        // $zip is already verified as this job's private archive above.
+        $this->remove_managed_backup_artifact($zip . '.entries', __('Could not remove the temporary ZIP entry journal. Check permissions and retry Stop.', 'uwh-site-migrator'));
         $this->remove_managed_backup_artifact($this->state_path($job) . '.tmp', __('Could not remove the temporary backup state. Check permissions and retry Stop.', 'uwh-site-migrator'));
         $this->remove_managed_backup_artifact($this->state_path($job), __('Could not clear the stopped backup state. Check permissions and retry Stop.', 'uwh-site-migrator'));
         if (class_exists('UWHSM_Background')) {
             wp_clear_scheduled_hook(UWHSM_Background::HOOK, array($job));
         }
         $this->remove_managed_backup_artifact($this->cancel_path($job), __('Backup files were removed but the cancellation marker could not be cleared.', 'uwh-site-migrator'));
+        $this->remove_managed_backup_artifact($this->backup_pause_path($job), __('Could not remove the backup pause marker.', 'uwh-site-migrator'));
+        $this->release_selected_backup($job);
         UWHSM_Logger::log('backup', 'info', __('Unfinished backup cancelled by an administrator.', 'uwh-site-migrator'), array('job' => $job, 'backup' => $name));
     }
 
@@ -1734,6 +2138,19 @@ final class UWHSM_Engine {
         if (!$this->safe_id($job) || !($s = $this->read_state($job)) || 'backup' !== ($s['type'] ?? '')) {
             throw new RuntimeException(esc_html__('Backup job was not found or expired.', 'uwh-site-migrator'));
         }
+        if ('checkpoint' !== ($s['purpose'] ?? 'backup') && $this->backup_is_paused($job)) {
+            $metrics = $this->backup_metrics($s);
+            return array('job' => $job, 'done' => false, 'paused' => true, 'progress' => $metrics['progress'], 'label' => __('Paused by administrator', 'uwh-site-migrator'));
+        }
+        if ('checkpoint' !== ($s['purpose'] ?? 'backup')) {
+            $selected = $this->selected_backup_job();
+            if (!$selected) {
+                $this->select_backup_job($job, false);
+            } elseif ($selected !== $job) {
+                $metrics = $this->backup_metrics($s);
+                return array('job' => $job, 'done' => false, 'busy' => true, 'paused' => true, 'progress' => $metrics['progress'], 'label' => __('Paused: another backup is selected.', 'uwh-site-migrator'));
+            }
+        }
         @ignore_user_abort(true);
         // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Large archive streaming is resumable, but this request may legitimately exceed the host default execution limit.
         @set_time_limit(0);
@@ -1748,10 +2165,24 @@ final class UWHSM_Engine {
             @fclose($lock);
             return array('job' => $job, 'done' => false, 'progress' => $metrics['progress'], 'label' => $metrics['label'], 'warnings' => count($s['warnings'] ?? array()), 'busy' => true, 'cancel_requested' => is_file($this->cancel_path($job)));
         }
+        // Re-check after taking the per-job writer lock. A different backup
+        // may have been explicitly selected while this request was waiting.
+        if ('checkpoint' !== ($s['purpose'] ?? 'backup') && $this->selected_backup_job() !== $job) {
+            $metrics = $this->backup_metrics($s);
+            @flock($lock, LOCK_UN);
+            @fclose($lock); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Backup writer lock release.
+            return array('job' => $job, 'done' => false, 'busy' => true, 'paused' => true, 'progress' => $metrics['progress'], 'label' => __('Paused: another backup is selected.', 'uwh-site-migrator'));
+        }
         try {
             $s = $this->read_state($job);
             if (!$s) {
                 throw new RuntimeException(__('Backup job was removed.', 'uwh-site-migrator'));
+            }
+            if ('checkpoint' !== ($s['purpose'] ?? 'backup') && $this->backup_is_paused($job)) {
+                $metrics = $this->backup_metrics($s);
+                @flock($lock, LOCK_UN);
+                @fclose($lock); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native backup lock cleanup.
+                return array('job' => $job, 'done' => false, 'paused' => true, 'progress' => $metrics['progress'], 'label' => __('Paused by administrator', 'uwh-site-migrator'));
             }
             if (is_file($this->cancel_path($job)) && 'done' !== ($s['phase'] ?? '')) {
                 $this->cleanup_cancelled_backup_locked($job, $s);
@@ -1761,7 +2192,12 @@ final class UWHSM_Engine {
                 return array('job' => $job, 'cancelled' => true, 'done' => false, 'progress' => 0, 'label' => __('Backup stopped', 'uwh-site-migrator'));
             }
             if ('files' === $s['phase']) {
-                $this->backup_files($s);
+                // A previously failed Site Migrator PHP file stays blocked
+                // until an administrator explicitly skips it. Never make the
+                // admin hit Resume three more times or spin the cron worker.
+                if (!$this->backup_admin_skip_candidate($s)) {
+                    $this->backup_files($s);
+                }
             } elseif ('database' === $s['phase']) {
                 $this->backup_database($s);
             } elseif ('finalize' === $s['phase']) {
@@ -1779,6 +2215,15 @@ final class UWHSM_Engine {
                 // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native backup lock.
                 @fclose($lock);
                 return array('job' => $job, 'cancelled' => true, 'done' => false, 'progress' => 0, 'label' => __('Backup stopped', 'uwh-site-migrator'));
+            }
+            // A successful resume invalidates stale, previously displayed
+            // file-read errors. Future failures will still be recorded by cron.
+            if ('cron' !== $initiator && !empty($s['background']) && is_array($s['background'])) {
+                // Use a status response, not an HTTP error, for an already
+                // retried blocker: the monitor can show Skip immediately.
+                $s['background']['error'] = '';
+                $s['background']['failures'] = 0;
+                $s['background']['retry_at'] = 0;
             }
             // When the browser is actively processing, cron should not compete
             // for the same ZIP lock. The short-lived heartbeat is a hint only;
@@ -1807,6 +2252,13 @@ final class UWHSM_Engine {
         }
         $metrics = $this->backup_metrics($s);
         $done = 'done' === $s['phase'];
+        if ($done && 'stream-v1' === ($s['zip_writer'] ?? '') && !empty($s['stream_finished'])) {
+            // The completed receipt and job state are durable before journal removal.
+            $journal_path = (string) $s['zip'] . '.entries';
+            if (is_file($journal_path) && !is_link($journal_path)) {
+                wp_delete_file($journal_path);
+            }
+        }
         if ($done && !empty($s['db_stage'])) {
             try {
                 $this->remove_tree($s['db_stage']);
@@ -1818,11 +2270,16 @@ final class UWHSM_Engine {
         if ($done && ($s['purpose'] ?? 'backup') === 'checkpoint') {
             $this->prune_checkpoints(3, array((string) ($s['name'] ?? '')));
         }
+        if ($done && 'checkpoint' !== ($s['purpose'] ?? 'backup')) {
+            $this->remove_managed_backup_artifact($this->backup_pause_path($job), __('Could not clear finished backup pause marker.', 'uwh-site-migrator'));
+            $this->release_selected_backup($job);
+        }
         if ($done) {
             $category = (($s['purpose'] ?? 'backup') === 'checkpoint')?'checkpoint':'backup';
-            UWHSM_Logger::log_once($category . '-complete-' . $job, $category, 'success', $category === 'checkpoint' ? __('Safety checkpoint completed.', 'uwh-site-migrator') : __('Backup completed.', 'uwh-site-migrator'), array('job' => $job, 'backup' => (string) ($s['name'] ?? ''), 'checkpoint' => (string) ($s['name'] ?? ''), 'delivery' => (string) ($s['delivery'] ?? 'local'), 'size' => is_file((string) ($s['zip'] ?? ''))?(int) @filesize($s['zip']):0), 7*DAY_IN_SECONDS);
+            UWHSM_Logger::log_once($category . '-complete-' . $job, $category, !empty($s['skipped_files']) ? 'warning' : 'success', $category === 'checkpoint' ? __('Safety checkpoint completed.', 'uwh-site-migrator') : (!empty($s['skipped_files']) ? __('Backup finished with skipped unreadable files. Review Activity Logs before migrating.', 'uwh-site-migrator') : __('Backup completed.', 'uwh-site-migrator')), array('job' => $job, 'backup' => (string) ($s['name'] ?? ''), 'checkpoint' => (string) ($s['name'] ?? ''), 'delivery' => (string) ($s['delivery'] ?? 'local'), 'size' => is_file((string) ($s['zip'] ?? ''))?(int) @filesize($s['zip']):0), 7*DAY_IN_SECONDS);
         }
-        return array('job' => $job, 'name' => (string) ($s['name'] ?? ''), 'purpose' => (string) ($s['purpose'] ?? 'backup'), 'done' => $done, 'progress' => $metrics['progress'], 'label' => (($s['purpose'] ?? 'backup') === 'checkpoint' && !$done ? __('Creating restore safety checkpoint · ', 'uwh-site-migrator') : '') . $metrics['label'], 'warnings' => count($s['warnings'] ?? array()), 'delivery_status' => (string) ($s['delivery_status'] ?? 'local'), 'delivery_warning' => (string) ($s['delivery_warning'] ?? ''), 'drive_transfer_id' => (string) ($s['drive_transfer_id'] ?? ''));
+        $skip_candidate = $this->backup_admin_skip_candidate($s);
+        return array('job' => $job, 'name' => (string) ($s['name'] ?? ''), 'purpose' => (string) ($s['purpose'] ?? 'backup'), 'done' => $done, 'progress' => $metrics['progress'], 'label' => (($s['purpose'] ?? 'backup') === 'checkpoint' && !$done ? __('Creating restore safety checkpoint · ', 'uwh-site-migrator') : '') . $metrics['label'], 'warnings' => count($s['warnings'] ?? array()), 'skipped_files' => count($s['skipped_files'] ?? array()), 'blocked' => (bool) $skip_candidate, 'skip_candidate' => $skip_candidate ? (string) $skip_candidate['file']['rel'] : '', 'delivery_status' => (string) ($s['delivery_status'] ?? 'local'), 'delivery_warning' => (string) ($s['delivery_warning'] ?? ''), 'drive_transfer_id' => (string) ($s['drive_transfer_id'] ?? ''));
     }
 
     private function ensure_drive_delivery(array &$state) {
@@ -1952,38 +2409,439 @@ final class UWHSM_Engine {
      *
      * @return array{bytes:int,files:int,work_seconds:float}
      */
-    private function backup_file_batch_limits($close_seconds) {
+    private function backup_file_batch_limits($close_seconds, $performance = array()) {
         $close_seconds = max(0.0, (float) $close_seconds);
         $mb = 1024 * 1024;
         if ($close_seconds <= 0.0) {
-            return array('bytes' => 128 * $mb, 'files' => 1000, 'work_seconds' => 5.0);
+            $limits = array('bytes' => 128 * $mb, 'files' => 1000, 'work_seconds' => 5.0);
+        } elseif ($close_seconds <= 1.5) {
+            $limits = array('bytes' => 192 * $mb, 'files' => 1500, 'work_seconds' => 5.0);
+        } elseif ($close_seconds <= 3.0) {
+            $limits = array('bytes' => 160 * $mb, 'files' => 1100, 'work_seconds' => 5.0);
+        } elseif ($close_seconds <= 5.0) {
+            $limits = array('bytes' => 96 * $mb, 'files' => 650, 'work_seconds' => 4.5);
+        } elseif ($close_seconds <= 8.0) {
+            $limits = array('bytes' => 64 * $mb, 'files' => 400, 'work_seconds' => 3.0);
+        } else {
+            $limits = array('bytes' => 48 * $mb, 'files' => 300, 'work_seconds' => 2.0);
         }
-        if ($close_seconds <= 1.5) {
-            return array('bytes' => 192 * $mb, 'files' => 1500, 'work_seconds' => 5.0);
+
+        // The default tiers above remain the fallback for old/unfinished jobs.
+        // Timing data is measured only AFTER a successful, committed ZIP close.
+        if (!is_array($performance) || empty($performance['files']) || empty($performance['total_s'])) {
+            return $limits;
         }
-        if ($close_seconds <= 3.0) {
-            return array('bytes' => 160 * $mb, 'files' => 1100, 'work_seconds' => 5.0);
+        $total = max(0.0, (float) $performance['total_s']);
+        $close = max(0.0, (float) ($performance['close_s'] ?? $close_seconds));
+        $work = max(0.0, (float) ($performance['processing_s'] ?? 0));
+        $previous_bytes = max(0, (int) ($performance['bytes'] ?? 0));
+        $previous_files = max(0, (int) $performance['files']);
+        $previous_cap = max(1, (int) ($performance['limit_bytes'] ?? $limits['bytes']));
+        $previous_file_cap = max(1, (int) ($performance['limit_files'] ?? $limits['files']));
+        $throughput = max(0.0, (float) ($performance['rate_mib_s'] ?? 0));
+        $bytes = (int) $limits['bytes'];
+        $files = (int) $limits['files'];
+        $work_seconds = (float) $limits['work_seconds'];
+
+        // Long close() calls are the main risk for restrictive shared hosts.
+        // Scale down gently; never turn a one-off slow response into 1 MB batches.
+        if ($close >= 8.0 || $total >= 18.0) {
+            $bytes = min($bytes, max(48 * $mb, (int) floor($previous_cap * 0.8)));
+            $files = min($files, max(300, (int) floor($previous_file_cap * 0.8)));
+            $work_seconds = min($work_seconds, 2.5);
+        } elseif ($total > 0.0 && $total <= 9.0 && $close <= 3.0 && $work <= 5.5) {
+            // Grow only after a sufficiently substantial batch. Small tail
+            // batches are not evidence of fast disk/ZIP throughput.
+            $substantial = $previous_bytes >= 8 * $mb || $previous_files >= 250;
+            if ($substantial) {
+                // The measured input throughput determines how quickly the
+                // target can grow; a moderately fast host gets a smaller step.
+                $growth = $throughput >= 12.0 ? 1.2 : 1.1;
+                $bytes = max($bytes, min(192 * $mb, (int) ceil($previous_cap * $growth)));
+                $files = max($files, min(1500, (int) ceil($previous_file_cap * $growth)));
+            }
         }
-        if ($close_seconds <= 5.0) {
-            return array('bytes' => 96 * $mb, 'files' => 650, 'work_seconds' => 4.5);
+        // When hashing many small files is slow, avoid needless retries and
+        // cap file count without shrinking the byte allowance arbitrarily.
+        $hash_seconds = max(0.0, (float) ($performance['checksum_s'] ?? 0));
+        if ($previous_files >= 100 && $hash_seconds / max(1, $previous_files) >= 0.025) {
+            $files = min($files, max(300, (int) floor($previous_file_cap * 0.85)));
         }
-        if ($close_seconds <= 8.0) {
-            // Was 32 MB / 200 files for all closes above 5 s. This is a
-            // larger, bounded tier without removing the request time guard.
-            return array('bytes' => 64 * $mb, 'files' => 400, 'work_seconds' => 3.0);
+        return array(
+            'bytes' => max(48 * $mb, min(192 * $mb, $bytes)),
+            'files' => max(300, min(1500, $files)),
+            'work_seconds' => max(2.0, min(5.0, $work_seconds)),
+        );
+    }
+
+    /** Bounded diagnostics stored with the resumable job, never in the ZIP. */
+    private function backup_record_archive_performance(array &$s, array $sample) {
+        if (!isset($s['archive_performance']) || !is_array($s['archive_performance'])) {
+            $s['archive_performance'] = array();
         }
-        // Very slow storage: do not blindly scale the archive batch upward.
-        // Still larger than the old 32 MB / 200-file slow-host tier.
-        return array('bytes' => 48 * $mb, 'files' => 300, 'work_seconds' => 2.0);
+        $sample['at'] = time();
+        $s['archive_performance'][] = $sample;
+        // Keep even 1 GB+ backups' state JSON small; avoid activity-log floods.
+        $s['archive_performance'] = array_slice($s['archive_performance'], -16);
+        $s['archive_performance_last'] = $sample;
+        $s['archive_performance_batches'] = (int) ($s['archive_performance_batches'] ?? 0) + 1;
+        if ((int) $s['archive_performance_batches'] % 10 === 0 || (float) $sample['close_s'] >= 12.0) {
+            UWHSM_Logger::log_once(
+                'backup-archive-perf-' . $s['job'] . '-' . (int) $s['archive_performance_batches'],
+                'backup', 'info',
+                sprintf(
+                    /* translators: 1: number of files, 2: MiB/s, 3: ZIP close duration in seconds. */
+                    __('Archiving performance: %1$d files, %2$s MiB/s, ZIP close %3$s s.', 'uwh-site-migrator'),
+                    (int) $sample['files'], (string) $sample['rate_mib_s'], (string) $sample['close_s']
+                ),
+                array('job' => (string) $s['job'], 'phase' => 'files', 'bytes' => (int) $sample['bytes']),
+                HOUR_IN_SECONDS
+            );
+        }
+    }
+
+    /** Read-only, admin-facing last ZIP batch samples; no paths or secrets. */
+    public function backup_archive_diagnostics() {
+        $selected = $this->selected_backup_job();
+        $state = $selected ? $this->background_state($selected) : false;
+        if (!$state || empty($state['archive_performance'])) {
+            $files = (array) glob($this->base . '/job-*.json');
+            // Prefer the latest job with recorded archiving data, including done.
+            usort($files, static function ($a, $b) { return (int) @filemtime($b) <=> (int) @filemtime($a); });
+            foreach (array_slice($files, 0, 100) as $file) {
+                $candidate = json_decode((string) @file_get_contents($file), true);
+                if (is_array($candidate) && 'backup' === ($candidate['type'] ?? '') && !empty($candidate['archive_performance'])) {
+                    $state = $candidate;
+                    break;
+                }
+            }
+        }
+        return is_array($state) && !empty($state['archive_performance']) ? array(
+            'name' => (string) ($state['name'] ?? ''),
+            'writer' => 'stream-v1' === ($state['zip_writer'] ?? '') ? 'stream-v1' : 'legacy',
+            'samples' => array_slice((array) $state['archive_performance'], -8),
+        ) : array('name' => '', 'writer' => '', 'samples' => array());
+    }
+
+    /** Keep known source branding images mandatory in the portable backup. */
+    private function backup_required_branding_files(array $branding) {
+        $required = array();
+        foreach ($branding as $ref) {
+            if (is_array($ref) && !empty($ref['file'])) {
+                $required[] = 'wp-content/uploads/' . ltrim(wp_normalize_path((string) $ref['file']), '/');
+            }
+        }
+        return array_values(array_unique($required));
+    }
+
+    /**
+     * A partial backup must never silently omit WordPress code, plugins, themes,
+     * or files required for a restore safety checkpoint. Only optional content
+     * may be skipped if the source file remains unreadable after bounded retry.
+     */
+    private function backup_can_skip_unreadable_file(array $s, $relative) {
+        if ('checkpoint' === ($s['purpose'] ?? 'backup')) {
+            return false;
+        }
+        $relative = ltrim(wp_normalize_path((string) $relative), '/');
+        if (in_array($relative, (array) ($s['required_media'] ?? array()), true)) {
+            return false; // Preserve verified source logo and favicon files.
+        }
+        if (0 === strpos($relative, 'wp-content/uploads/')) {
+            // Upload protection policies must not be silently dropped.
+            return !in_array(strtolower(basename($relative)), array('.htaccess', '.user.ini', 'web.config'), true);
+        }
+        // Unknown files within the WordPress content directory may belong to
+        // essential theme/plugin configuration. Fail instead of guessing.
+        if (0 === strpos($relative, 'wp-content/') || 0 === strpos($relative, 'wp-admin/')
+            || 0 === strpos($relative, 'wp-includes/')) {
+            return false;
+        }
+        // Non-code files at the site root may be host-specific or optional.
+        // WordPress bootstrap files must always be copied correctly.
+        return false === preg_match('/\.(?:php|phtml|phar|htaccess|ini)$/i', $relative)
+            && false === preg_match('#^(?:index\.php|wp-[^/]*|xmlrpc\.php)$#i', $relative);
+    }
+
+    /** Read and checksum before adding to ZipArchive (which reads at close). */
+    private function backup_checksum_with_retries($path, $expected_size, &$last_issue) {
+        $last_issue = __('Source file could not be read.', 'uwh-site-migrator');
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            clearstatcache(true, $path);
+            if (is_link($path)) {
+                $last_issue = __('Source file became a symbolic link during backup.', 'uwh-site-migrator');
+                return false; // Never follow a changed symlink, even on retry.
+            }
+            if (!is_file($path) || !is_readable($path)) {
+                $last_issue = __('Source file is missing or unreadable.', 'uwh-site-migrator');
+            } else {
+                $size = @filesize($path);
+                if (false === $size || (int) $size !== (int) $expected_size) {
+                    $last_issue = __('Source file size changed during backup.', 'uwh-site-migrator');
+                } else {
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_hash_file -- Native streaming SHA-256 is required by the existing .uwh integrity format.
+                    $digest = @hash_file('sha256', $path);
+                    if (is_string($digest) && preg_match('/^[a-f0-9]{64}$/D', $digest)) {
+                        return $digest;
+                    }
+                    $last_issue = __('Could not read source file for SHA-256 verification.', 'uwh-site-migrator');
+                }
+            }
+            if ($attempt < 3) {
+                usleep(150000 * $attempt); // Bounded 0.45s total, no unbounded retries.
+            }
+        }
+        return false;
+    }
+
+    /** Save an explicit per-file omission; never report an incomplete package as lossless. */
+    private function backup_record_unreadable_skip(array &$s, array $file, $reason) {
+        if (!isset($s['warnings']) || !is_array($s['warnings'])) {
+            $s['warnings'] = array();
+        }
+        $relative = (string) $file['rel'];
+        $s['warnings'][] = sprintf(
+            /* translators: 1: skipped source path, 2: read failure reason. */
+            __('Skipped unreadable optional file after 3 attempts: %1$s (%2$s). The backup is not a byte-for-byte copy of the source.', 'uwh-site-migrator'),
+            $relative,
+            $reason
+        );
+        $s['skipped_files'][] = 'site/' . $relative;
+        UWHSM_Logger::log_once('backup-unreadable-' . md5($s['job'] . ':' . $relative),
+            'backup', 'warning',
+            __('A source file was unreadable after 3 attempts and was excluded from the backup. The backup is incomplete.', 'uwh-site-migrator'),
+            array('job' => (string) ($s['job'] ?? ''), 'file' => $relative, 'reason' => $reason),
+            7 * DAY_IN_SECONDS
+        );
+        $s['file_bytes_done'] += (int) $file['size'];
+        $s['done_units']++;
+    }
+
+    /** Persist the exact failure before an exception exits the current batch. */
+    private function backup_mark_required_file_blocked(array &$s, array $file, $reason) {
+        $s['backup_blocked_file'] = array(
+            'index' => (int) ($s['file_index'] ?? 0),
+            'rel' => (string) ($file['rel'] ?? ''),
+            'reason' => (string) $reason,
+            // Remember whether an unattended worker was active before the
+            // administrator must decide whether to make this backup partial.
+            'background_was_enabled' => !empty($s['background']['enabled']),
+        );
+        $this->write_state((string) $s['job'], $s);
+    }
+
+    /** Report a nonessential WooCommerce runtime log omitted from an old job. */
+    private function backup_record_woocommerce_log_skip(array &$s, array $file) {
+        $relative = ltrim(wp_normalize_path((string) $file['rel']), '/');
+        $entry = 'site/' . $relative;
+        if (!isset($s['skipped_files']) || !is_array($s['skipped_files'])) {
+            $s['skipped_files'] = array();
+        }
+        if (!in_array($entry, $s['skipped_files'], true)) {
+            $s['skipped_files'][] = $entry;
+        }
+        if (!isset($s['warnings']) || !is_array($s['warnings'])) {
+            $s['warnings'] = array();
+        }
+        // Keep job JSON bounded if a site has tens of thousands of old logs.
+        if (count($s['warnings']) < 100) {
+            $s['warnings'][] = sprintf(
+                /* translators: %s: skipped WooCommerce runtime log path. */
+                __('Excluded nonessential WooCommerce runtime log: %s', 'uwh-site-migrator'),
+                $relative
+            );
+        }
+        UWHSM_Logger::log_once(
+            'backup-wc-runtime-log-' . md5((string) $s['job'] . ':' . $relative),
+            'backup', 'warning',
+            __('A rotating WooCommerce runtime log was omitted from the backup. Product/order data and WordPress database tables are unaffected.', 'uwh-site-migrator'),
+            array('job' => (string) ($s['job'] ?? ''), 'file' => $relative),
+            7 * DAY_IN_SECONDS
+        );
+        $s['file_bytes_done'] += (int) $file['size'];
+        $s['done_units']++;
+    }
+
+    /** Only source-read failures may be offered as optional skip candidates.
+     * Archive/journal writes, storage exhaustion and ZIP corruption are fatal:
+     * skipping a source file cannot repair an unsafe output archive.
+     */
+    private function backup_stream_source_read_failure($message) {
+        foreach (array(
+            'Source file disappeared or is a symlink.',
+            'Could not read source file.',
+            'Source file read failed during streaming.',
+            'Source file read stopped without EOF.',
+            'Source file changed during ZIP writing.',
+        ) as $prefix) {
+            if (0 === strpos((string) $message, $prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Append-only ZIP64 file writer (experimental, fresh ordinary backups only).
+     * The job's saved offset and journal position are the transaction boundary.
+     * After an interrupted PHP request, any uncommitted tail is truncated by
+     * the writer before the next file is processed. Legacy ZIP files are never
+     * passed through this code path.
+     */
+    private function backup_files_stream(array &$s) {
+        $started = microtime(true);
+        $limits = $this->backup_file_batch_limits($s['zip_close_seconds'] ?? 0, $s['archive_performance_last'] ?? array());
+        // A streaming writer does not rewrite a growing central directory.
+        // Keep each PHP request bounded by existing file count/byte budgets.
+        $bytes = 0;
+        $handled = 0;
+        $read_seconds = 0.0;
+        $count = count($s['files']);
+        for ($i = (int) $s['file_index']; $i < $count && $handled < $limits['files']; $i++) {
+            $f = $s['files'][$i];
+            if ($handled > 0 && ($bytes + (int) $f['size'] > $limits['bytes']
+                || microtime(true) - $started > $limits['work_seconds'])) {
+                break;
+            }
+            if ($this->is_woocommerce_runtime_log($f['rel'])) {
+                $this->backup_record_woocommerce_log_skip($s, $f);
+                $handled++;
+                $s['file_index'] = $i + 1;
+                continue;
+            }
+            if ($this->is_ephemeral_file($f['rel'])) {
+                $s['warnings'][] = __('Skipped temporary runtime file: ', 'uwh-site-migrator') . $f['rel'];
+                $handled++;
+                $s['file_bytes_done'] += (int) $f['size'];
+                $s['done_units']++;
+                $s['file_index'] = $i + 1;
+                continue;
+            }
+            $failure = '';
+            $before_read = microtime(true);
+            $digest = $this->backup_checksum_with_retries($f['path'], $f['size'], $failure);
+            $read_seconds += microtime(true) - $before_read;
+            if (false === $digest) {
+                if (!$this->backup_can_skip_unreadable_file($s, $f['rel'])) {
+                    $this->backup_mark_required_file_blocked($s, $f, $failure);
+                    if ($this->backup_admin_skip_candidate($s)) {
+                        return;
+                    }
+                    throw new RuntimeException(sprintf(
+                        /* translators: 1: Required website file path; 2: Last file read error. */
+                        esc_html__('Required website file could not be read after 3 attempts: %1$s. %2$s', 'uwh-site-migrator'),
+                        esc_html($f['rel']), esc_html($failure)
+                    ));
+                }
+                $this->backup_record_unreadable_skip($s, $f, $failure);
+                $s['file_index'] = $i + 1;
+                $handled++;
+                continue;
+            }
+            $result = null;
+            $source_error = '';
+            // Read errors can be transient (e.g. a plugin update replacing a
+            // source file). Retry the SAME entry with the committed stream/journal
+            // offsets; each unsuccessful append rolls back its uncommitted tail.
+            // Storage, ZIP and journal write errors must NEVER be skipped.
+            for ($attempt = 1; $attempt <= 3; $attempt++) {
+                try {
+                    $result = UWHSM_Stream_Zip::append(
+                        $s['zip'], $s['zip'] . '.entries', (int) $s['stream_offset'],
+                        (int) $s['stream_journal_bytes'], 'site/' . $f['rel'],
+                        $f['path'], null, (int) $f['size'], $digest
+                    );
+                    break;
+                } catch (Throwable $e) {
+                    $source_error = $e->getMessage();
+                    if (!$this->backup_stream_source_read_failure($source_error)) {
+                        throw $e;
+                    }
+                    if ($attempt < 3) {
+                        usleep(100000 * $attempt);
+                        $new_digest = $this->backup_checksum_with_retries($f['path'], $f['size'], $source_error);
+                        if (false === $new_digest) {
+                            break;
+                        }
+                        $digest = $new_digest;
+                    }
+                }
+            }
+            if (null === $result) {
+                $failure = $source_error ?: __('Source file could not be read.', 'uwh-site-migrator');
+                if (!$this->backup_can_skip_unreadable_file($s, $f['rel'])) {
+                    $this->backup_mark_required_file_blocked($s, $f, $failure);
+                    if ($this->backup_admin_skip_candidate($s)) {
+                        return;
+                    }
+                    throw new RuntimeException(sprintf(
+                        /* translators: 1: Required website file path; 2: Last file read error. */
+                        esc_html__('Required website file could not be read after 3 attempts: %1$s. %2$s', 'uwh-site-migrator'),
+                        esc_html($f['rel']), esc_html($failure)
+                    ));
+                }
+                $this->backup_record_unreadable_skip($s, $f, $failure);
+                $s['file_index'] = $i + 1;
+                $handled++;
+                continue;
+            }
+            $s['stream_offset'] = $result['offset'];
+            $s['stream_journal_bytes'] = $result['journal_bytes'];
+            $s['inventory']['site/' . $f['rel']] = array('size' => $result['size'], 'sha256' => $result['sha256']);
+            unset($s['backup_blocked_file']);
+            $s['file_bytes_done'] += (int) $f['size'];
+            $s['done_units']++;
+            $s['file_index'] = $i + 1;
+            $bytes += (int) $f['size'];
+            $handled++;
+        }
+        $total = max(.001, microtime(true) - $started);
+        if ($bytes > 0) {
+            $this->backup_record_archive_performance($s, array(
+                'files' => $handled, 'bytes' => $bytes,
+                'limit_bytes' => $limits['bytes'], 'limit_files' => $limits['files'],
+                'work_budget_s' => $limits['work_seconds'], 'open_s' => 0,
+                'checksum_s' => round($read_seconds, 3),
+                'enqueue_s' => round(max(0, $total - $read_seconds), 3),
+                'processing_s' => round($total, 3), 'close_s' => 0,
+                'total_s' => round($total, 3),
+                'rate_mib_s' => round(($bytes / 1048576) / $total, 3),
+                'archive_bytes' => (int) @filesize($s['zip']),
+            ));
+        }
+        if ($s['file_index'] >= $count) {
+            unset($s['files']);
+            $s['phase'] = 'database';
+        }
     }
 
     private function backup_files(array &$s) {
-        $zip = $this->open_zip($s['zip']);
+        // An early experimental build could leave a stream journal without
+        // recording the writer in its state. Never feed this partial ZIP to
+        // ZipArchive: doing so can damage an otherwise resumable archive.
+        if ('stream-v1' !== ($s['zip_writer'] ?? '') && is_file((string) ($s['zip'] ?? '') . '.entries')) {
+            throw new RuntimeException(esc_html__('This unfinished fast ZIP backup predates the saved-writer fix. Stop this temporary backup and start a fresh one; changing ZIP writers during Resume is unsafe.', 'uwh-site-migrator'));
+        }
+        if ('stream-v1' === ($s['zip_writer'] ?? '')) {
+            if (!isset($s['stream_offset'], $s['stream_journal_bytes']) || !is_file((string) $s['zip'] . '.entries')) {
+                throw new RuntimeException(esc_html__('Fast ZIP saved progress is incomplete or its journal is missing. Stop this job safely; do not switch writers while resuming.', 'uwh-site-migrator'));
+            }
+            $this->backup_files_stream($s);
+            return;
+        }
+        $batch_started = microtime(true);
+        // Opening a huge ZIP is pointless for skipped-only batches (for example
+        // old jobs with many rotating logs). Open lazily after a verified file
+        // is ready to be added; preserve the original archive on no-op batches.
+        $zip = null;
+        $open_seconds = 0.0;
         $started = microtime(true);
+        $checksum_seconds = 0.0;
+        $enqueue_seconds = 0.0;
         // Adjust each batch using the previous ZIP close time. Small-file
         // batches on slower hosts are larger than before, while the shorter
         // work budget leaves room for expensive ZIP close() operations.
-        $limits = $this->backup_file_batch_limits($s['zip_close_seconds'] ?? 0);
+        $limits = $this->backup_file_batch_limits($s['zip_close_seconds'] ?? 0, $s['archive_performance_last'] ?? array());
         $limit = $limits['bytes'];
         $batch_files = $limits['files'];
         $work_seconds = $limits['work_seconds'];
@@ -1992,8 +2850,20 @@ final class UWHSM_Engine {
         $count = count($s['files']);
         for ($i = $s['file_index']; $i < $count && $handled < $batch_files; $i++) {
             $f = $s['files'][$i];
+            if (isset($s['backup_blocked_file']) && (int) ($s['backup_blocked_file']['index'] ?? -1) !== $i) {
+                unset($s['backup_blocked_file']);
+            }
             if ($handled > 0 && ($batch_bytes+(int) $f['size'] > $limit || microtime(true)-$started > $work_seconds)) {
                 break;
+            }
+            // Saved jobs from earlier versions may already list volatile WooCommerce
+            // .log files. Exclude them BEFORE hash_file/addFile so a logger rotation
+            // cannot cause another ZIP-close read failure on Resume.
+            if ($this->is_woocommerce_runtime_log($f['rel'])) {
+                $this->backup_record_woocommerce_log_skip($s, $f);
+                $handled++;
+                $s['file_index'] = $i + 1;
+                continue;
             }
             if ($this->is_ephemeral_file($f['rel'])) {
                 if (!isset($s['warnings'])) {
@@ -2013,20 +2883,79 @@ final class UWHSM_Engine {
                 $s['file_index'] = $i+1;
                 continue;
             }
-            if (!is_readable($f['path'])) {
-                $zip->close();
-                throw new RuntimeException(esc_html__('File is not readable: ', 'uwh-site-migrator') . esc_html($f['rel']));
-            }
-            if (!$zip->addFile($f['path'], 'site/' . $f['rel'])) {
-                $zip->close();
-                throw new RuntimeException(esc_html__('Could not add file: ', 'uwh-site-migrator') . esc_html($f['rel']));
-            }
-            $digest = hash_file('sha256', $f['path']);
+            // Check the source bytes before registering a deferred ZipArchive
+            // read. Do not queue an entry that already failed validation.
+            $failure = '';
+            $checksum_started = microtime(true);
+            $digest = $this->backup_checksum_with_retries($f['path'], $f['size'], $failure);
+            $checksum_seconds += microtime(true) - $checksum_started;
             if (false === $digest) {
-                $zip->close();
-                throw new RuntimeException(esc_html__('Could not checksum ', 'uwh-site-migrator') . esc_html($f['rel']));
+                if (!$this->backup_can_skip_unreadable_file($s, $f['rel'])) {
+                    if ($zip && !$zip->close()) {
+                        throw new RuntimeException(esc_html__('Could not safely close ZIP after a file read failure.', 'uwh-site-migrator'));
+                    }
+                    $this->backup_mark_required_file_blocked($s, $f, $failure);
+                    if ($this->backup_admin_skip_candidate($s)) {
+                        // Three checksum read attempts already ran in this
+                        // request. Return a durable, actionable blocker to the
+                        // browser; no three manual Resume clicks are required.
+                        return;
+                    }
+                    throw new RuntimeException(sprintf(
+                        /* translators: 1: critical file path, 2: last read failure. */
+                        esc_html__('Required website file could not be read after 3 attempts: %1$s. %2$s', 'uwh-site-migrator'),
+                        esc_html($f['rel']), esc_html($failure)
+                    ));
+                }
+                $this->backup_record_unreadable_skip($s, $f, $failure);
+                $handled++;
+                $s['file_index'] = $i + 1;
+                continue;
             }
-            $s['inventory']['site/' . $f['rel']] = array('size' => (int) filesize($f['path']), 'sha256' => $digest);
+            $archive_entry = 'site/' . $f['rel'];
+            if (null === $zip) {
+                $open_started = microtime(true);
+                $zip = $this->open_zip($s['zip']);
+                $open_seconds = microtime(true) - $open_started;
+            }
+            $enqueue_started = microtime(true);
+            $added = false;
+            for ($attempt = 1; $attempt <= 3; $attempt++) {
+                if ($zip->addFile($f['path'], $archive_entry)) {
+                    $added = true;
+                    break;
+                }
+                // If an extension left a failed entry queued, remove it so
+                // skipped paths can never appear unindexed in the archive.
+                if (false !== $zip->locateName($archive_entry)) {
+                    if (!$zip->deleteName($archive_entry)) {
+                        $zip->close();
+                        throw new RuntimeException(esc_html__('Could not discard a failed ZIP entry safely.', 'uwh-site-migrator'));
+                    }
+                }
+                if ($attempt < 3) {
+                    usleep(150000 * $attempt);
+                }
+            }
+            if (!$added) {
+                $failure = __('ZipArchive could not accept the source file.', 'uwh-site-migrator');
+                if (!$this->backup_can_skip_unreadable_file($s, $f['rel'])) {
+                    if ($zip && !$zip->close()) {
+                        throw new RuntimeException(esc_html__('Could not safely close ZIP after a failed file add.', 'uwh-site-migrator'));
+                    }
+                    $this->backup_mark_required_file_blocked($s, $f, $failure);
+                    if ($this->backup_admin_skip_candidate($s)) {
+                        return; // The three bounded addFile() attempts failed.
+                    }
+                    throw new RuntimeException(esc_html__('Could not add required file after 3 attempts: ', 'uwh-site-migrator') . esc_html($f['rel']));
+                }
+                $this->backup_record_unreadable_skip($s, $f, $failure);
+                $handled++;
+                $s['file_index'] = $i + 1;
+                continue;
+            }
+            unset($s['backup_blocked_file']);
+            $s['inventory'][$archive_entry] = array('size' => (int) $f['size'], 'sha256' => $digest);
             $ext = strtolower(pathinfo($f['rel'], PATHINFO_EXTENSION));
             if (method_exists($zip, 'setCompressionName')) {
                 if (in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic', 'heif', 'jxl', 'svgz', 'mp4', 'm4v', 'mov', 'avi', 'mkv', 'webm', 'ogv', '3gp', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'zip', 'gz', 'tgz', 'bz2', 'xz', 'zst', 'rar', '7z', 'pdf', 'woff', 'woff2'), true)) {
@@ -2036,17 +2965,40 @@ final class UWHSM_Engine {
                     @$zip->setCompressionName('site/' . $f['rel'], ZipArchive::CM_DEFLATE, 1);
                 }
             }
+            $enqueue_seconds += microtime(true) - $enqueue_started;
             $batch_bytes += (int) $f['size'];
             $handled++;
             $s['file_bytes_done'] += (int) $f['size'];
             $s['done_units']++;
             $s['file_index'] = $i+1;
         }
-        $close_started = microtime(true);
-        if (!$zip->close()) {
-            throw new RuntimeException(esc_html__('Could not finish writing ZIP. Check free disk space and hosting limits.', 'uwh-site-migrator'));
+        if (null !== $zip) {
+            $close_started = microtime(true);
+            if (!$zip->close()) {
+                throw new RuntimeException(esc_html__('Could not finish writing ZIP. Check free disk space and hosting limits.', 'uwh-site-migrator'));
+            }
+            $close_seconds = microtime(true) - $close_started;
+            $s['zip_close_seconds'] = round($close_seconds, 3);
+            $total_seconds = max(0.001, microtime(true) - $batch_started);
+            $rate = ($batch_bytes / (1024 * 1024)) / $total_seconds;
+            $this->backup_record_archive_performance($s, array(
+                'files' => $handled,
+                'bytes' => $batch_bytes,
+                'limit_bytes' => $limit,
+                'limit_files' => $batch_files,
+                'work_budget_s' => $work_seconds,
+                'open_s' => round($open_seconds, 3),
+                'checksum_s' => round($checksum_seconds, 3),
+                'enqueue_s' => round($enqueue_seconds, 3),
+                'processing_s' => round($close_started - $started, 3),
+                'close_s' => round($close_seconds, 3),
+                'total_s' => round($total_seconds, 3),
+                'rate_mib_s' => round($rate, 3),
+                'archive_bytes' => (int) @filesize($s['zip']),
+            ));
         }
-        $s['zip_close_seconds'] = round(microtime(true) - $close_started, 3);
+        // Skip-only batches leave the previous *committed* ZIP timing intact;
+        // a zero-second no-op must not trick the adaptive tuner into growth.
         if ($s['file_index'] >= count($s['files'])) {
             unset($s['files']);
             $s['phase'] = 'database';
@@ -2149,6 +3101,70 @@ final class UWHSM_Engine {
         $s['db_batch_rows'] = max(1, min(1600, $next));
     }
 
+    /**
+     * Append database rows in bounded buffers, preserving the v1 `.rows`
+     * encoding (one base64-serialized PHP row per line) exactly.
+     *
+     * A network/PHP failure can leave an uncommitted suffix on disk. The next
+     * request truncates to the last durable rows_bytes offset before retrying.
+     * Nothing about the manifest, cursor or restore decoder is changed.
+     */
+    private function backup_append_serialized_rows($path, array $rows, $offset) {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Bounded, resumable file staging requires a seekable native stream.
+        $fh = @fopen($path, 'c+b');
+        if (!$fh) {
+            throw new RuntimeException(esc_html__('Could not open staged database rows.', 'uwh-site-migrator'));
+        }
+        $total = 0;
+        $buffer = '';
+        $limit = 256 * 1024;
+        try {
+            if (!@ftruncate($fh, max(0, (int) $offset)) || 0 !== @fseek($fh, max(0, (int) $offset))) {
+                throw new RuntimeException(esc_html__('Could not checkpoint database rows.', 'uwh-site-migrator'));
+            }
+            foreach ($rows as $row) {
+                $line = base64_encode(serialize($row)) . "\n";
+                if ('' !== $buffer && strlen($buffer) + strlen($line) > $limit) {
+                    $total += $this->backup_write_stream_exact($fh, $buffer);
+                    $buffer = '';
+                }
+                if (strlen($line) >= $limit) {
+                    // A single large Elementor value may exceed 256 KiB;
+                    // PHP already holds this row from the DB result, but the
+                    // complete batch is never duplicated as another string.
+                    $total += $this->backup_write_stream_exact($fh, $line);
+                } else {
+                    $buffer .= $line;
+                }
+            }
+            if ('' !== $buffer) {
+                $total += $this->backup_write_stream_exact($fh, $buffer);
+            }
+            if (!@fflush($fh)) {
+                throw new RuntimeException(esc_html__('Could not flush staged database rows.', 'uwh-site-migrator'));
+            }
+        } finally {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See bounded native DB stream above.
+            @fclose($fh);
+        }
+        return $total;
+    }
+
+    /** Recover cleanly from short writes instead of treating one fwrite as atomic. */
+    private function backup_write_stream_exact($fh, $data) {
+        $length = strlen($data);
+        $written = 0;
+        while ($written < $length) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Bounded, seekable DB export, not a public upload path.
+            $n = @fwrite($fh, substr($data, $written, 256 * 1024));
+            if (false === $n || 0 === $n) {
+                throw new RuntimeException(esc_html__('Could not stage database rows. Check disk space.', 'uwh-site-migrator'));
+            }
+            $written += $n;
+        }
+        return $written;
+    }
+
     private function backup_database(array &$s) {
         global $wpdb;
         $batch_rows = $this->backup_database_batch_rows($s);
@@ -2195,29 +3211,9 @@ final class UWHSM_Engine {
             throw new RuntimeException(esc_html__('Database export failed: ', 'uwh-site-migrator') . esc_html($wpdb->last_error));
         }
         if ($rows) {
-            $payload = '';
-            foreach ($rows as $row) {
-                $payload .= base64_encode(serialize($row)) . "\n";
-            }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-            $fh = fopen($rows_stage, 'c+b');
-            if (!$fh) {
-                throw new RuntimeException(esc_html__('Could not open staged database rows.', 'uwh-site-migrator'));
-            }
-            $offset = isset($s['rows_bytes'])?(int) $s['rows_bytes']:(int) filesize($rows_stage);
-            if (!ftruncate($fh, $offset) || fseek($fh, $offset) !== 0) {
-                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-                fclose($fh);
-                throw new RuntimeException(esc_html__('Could not checkpoint database rows.', 'uwh-site-migrator'));
-            }
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Native streaming is required to write large backup archives/chunks without loading them fully into memory.
-            $written = fwrite($fh, $payload);
-            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-            fclose($fh);
-            if ($written !== strlen($payload)) {
-                throw new RuntimeException(esc_html__('Could not stage database rows. Check disk space.', 'uwh-site-migrator'));
-            }
-            $s['rows_bytes'] = $offset+$written;
+            $offset = isset($s['rows_bytes']) ? (int) $s['rows_bytes'] : (is_file($rows_stage) ? (int) filesize($rows_stage) : 0);
+            $written = $this->backup_append_serialized_rows($rows_stage, $rows, $offset);
+            $s['rows_bytes'] = $offset + $written;
             $s['row_offset'] += count($rows);
             $s['rows_done'] += count($rows);
             // Persist tuning only after the exact bytes and cursor are committed,
@@ -2238,7 +3234,85 @@ final class UWHSM_Engine {
         }
     }
 
+    /** Finish the experimental stream with the same manifest/database/integrity contract. */
+    private function backup_finalize_stream(array &$s) {
+        $now = $this->collect_tables();
+        $expected = (array) ($s['tables'] ?? array());
+        $exported = array_keys((array) ($s['table_rows'] ?? array()));
+        sort($expected, SORT_STRING);
+        sort($exported, SORT_STRING);
+        if ($now !== $expected || $exported !== $expected) {
+            throw new RuntimeException(esc_html__('Database table list changed or not all tables were exported.', 'uwh-site-migrator'));
+        }
+        // Stage files remain intact until the completed .uwh receipt is saved.
+        // Rebuild from the last committed offset on a lost finalization reply.
+        $offset = (int) $s['stream_offset'];
+        $journal = (int) $s['stream_journal_bytes'];
+        foreach ((array) glob($s['db_stage'] . '/*') as $file) {
+            if (!is_file($file) || !preg_match('/\.(schema|rows)\z/', $file)) {
+                continue;
+            }
+            $entry = 'database/' . basename($file);
+            $size = @filesize($file);
+            $digest = @hash_file('sha256', $file);
+            if (false === $size || !is_string($digest) || !preg_match('/^[a-f0-9]{64}$/D', $digest)) {
+                throw new RuntimeException(esc_html__('Could not verify staged database export.', 'uwh-site-migrator'));
+            }
+            $result = UWHSM_Stream_Zip::append($s['zip'], $s['zip'] . '.entries', $offset, $journal,
+                $entry, $file, null, (int) $size, $digest);
+            $offset = (int) $result['offset'];
+            $journal = (int) $result['journal_bytes'];
+            $s['inventory'][$entry] = array('size' => (int) $size, 'sha256' => $digest);
+        }
+        if (empty($s['inventory'])) {
+            throw new RuntimeException(esc_html__('Cannot finish a backup without verified files.', 'uwh-site-migrator'));
+        }
+        $integrity = wp_json_encode(array('version' => 1, 'files' => $s['inventory'],
+            'table_rows' => $s['table_rows'], 'skipped_unreadable_files' => array_values($s['skipped_files'] ?? array())));
+        $end = UWHSM_Stream_Zip::append($s['zip'], $s['zip'] . '.entries', $offset, $journal,
+            'integrity.json', null, $integrity, null, null);
+        $finished_bytes = UWHSM_Stream_Zip::finish($s['zip'], $s['zip'] . '.entries',
+            (int) $end['offset'], (int) $end['journal_bytes']);
+        // Confirm legacy reader compatibility BEFORE making the backup visible.
+        $zip = $this->open_zip($s['zip']);
+        try {
+            $valid = $zip->locateName('manifest.json') !== false && $zip->locateName('integrity.json') !== false;
+            foreach ((array) $s['tables'] as $table) {
+                if ($zip->locateName('database/' . rawurlencode($table) . '.schema') === false) {
+                    $valid = false;
+                    break;
+                }
+            }
+        } finally {
+            $zip->close();
+        }
+        if (!$valid || $finished_bytes < 100) {
+            throw new RuntimeException(esc_html__('Experimental backup ZIP failed legacy compatibility verification.', 'uwh-site-migrator'));
+        }
+        clearstatcache(true, $s['zip']);
+        $completed_size = (int) filesize($s['zip']);
+        $completed_mtime = (int) filemtime($s['zip']);
+        if (false === file_put_contents($s['zip'] . '.json', wp_json_encode(array(
+            'created' => time(), 'size' => $completed_size, 'mtime' => $completed_mtime,
+            'rows' => (int) $s['rows_done'], 'warnings' => $s['warnings'] ?? array(),
+            'skipped_unreadable_files' => array_values($s['skipped_files'] ?? array()),
+            'automatic' => !empty($s['is_auto']), 'purpose' => (string) ($s['purpose'] ?? 'backup'),
+            'checkpoint_for' => (string) ($s['checkpoint_for'] ?? ''),
+        )), LOCK_EX)) {
+            throw new RuntimeException(esc_html__('Could not save backup completion marker.', 'uwh-site-migrator'));
+        }
+        $s['phase'] = 'done';
+        $s['stream_finished'] = true;
+    }
+
     private function backup_finalize(array &$s) {
+        if ('stream-v1' !== ($s['zip_writer'] ?? '') && is_file((string) ($s['zip'] ?? '') . '.entries')) {
+            throw new RuntimeException(esc_html__('The backup has an incompatible unfinished fast ZIP journal. Stop this job safely and create a new backup.', 'uwh-site-migrator'));
+        }
+        if ('stream-v1' === ($s['zip_writer'] ?? '')) {
+            $this->backup_finalize_stream($s);
+            return;
+        }
         // Detect tables created or deleted while a multi-request backup ran.
         // Missing a late-created table must never produce a silently complete backup.
         $now = $this->collect_tables();
@@ -2250,25 +3324,30 @@ final class UWHSM_Engine {
             throw new RuntimeException(esc_html__('Database table list changed during export or not every table was exported. Retry the backup when database schema is stable.', 'uwh-site-migrator'));
         }
         $zip = $this->open_zip($s['zip']);
+        // One bounded directory inventory pass (instead of two glob/stat
+        // passes), with the staged bytes checked before the deferred ZIP read.
         foreach ((array) glob($s['db_stage'] . '/*') as $file) {
             if (!is_file($file) || !preg_match('/\.(schema|rows)\z/', $file)) {
                 continue;
             }
             $entry = 'database/' . basename($file);
+            $size = @filesize($file);
+            $digest = @hash_file('sha256', $file);
+            if (false === $size || !is_string($digest) || !preg_match('/^[a-f0-9]{64}$/D', $digest)) {
+                $zip->close();
+                throw new RuntimeException(esc_html__('Could not verify staged database export.', 'uwh-site-migrator'));
+            }
             if (!$zip->addFile($file, $entry)) {
+                $zip->close();
                 throw new RuntimeException(esc_html__('Could not add staged database export.', 'uwh-site-migrator'));
             }
             $zip->setCompressionName($entry, ZipArchive::CM_DEFLATE, 1);
-        }
-        foreach ((array) glob($s['db_stage'] . '/*') as $file) {
-            if (is_file($file)) {
-                $s['inventory']['database/' . basename($file)] = array('size' => filesize($file), 'sha256' => hash_file('sha256', $file));
-            }
+            $s['inventory'][$entry] = array('size' => (int) $size, 'sha256' => $digest);
         }
         if (empty($s['inventory'])) {
             throw new RuntimeException(esc_html__('This interrupted backup predates integrity checks. Create a new backup.', 'uwh-site-migrator'));
         }
-        $zip->addFromString('integrity.json', wp_json_encode(array('version' => 1, 'files' => $s['inventory'], 'table_rows' => $s['table_rows'])));
+        $zip->addFromString('integrity.json', wp_json_encode(array('version' => 1, 'files' => $s['inventory'], 'table_rows' => $s['table_rows'], 'skipped_unreadable_files' => array_values($s['skipped_files'] ?? array()))));
         if (!$zip->close()) {
             throw new RuntimeException(esc_html__('ZIP finalization failed. Check free disk space.', 'uwh-site-migrator'));
         }
@@ -2287,7 +3366,7 @@ final class UWHSM_Engine {
         }
         $completed_size = (int) filesize($s['zip']);
         $completed_mtime = (int) filemtime($s['zip']);
-        if (false === file_put_contents($s['zip'] . '.json', wp_json_encode(array('created' => time(), 'size' => $completed_size, 'mtime' => $completed_mtime, 'rows' => (int) $s['rows_done'], 'warnings' => $s['warnings'] ?? array(), 'automatic' => !empty($s['is_auto']), 'purpose' => (string) ($s['purpose'] ?? 'backup'), 'checkpoint_for' => (string) ($s['checkpoint_for'] ?? ''))), LOCK_EX)) {
+        if (false === file_put_contents($s['zip'] . '.json', wp_json_encode(array('created' => time(), 'size' => $completed_size, 'mtime' => $completed_mtime, 'rows' => (int) $s['rows_done'], 'warnings' => $s['warnings'] ?? array(), 'skipped_unreadable_files' => array_values($s['skipped_files'] ?? array()), 'automatic' => !empty($s['is_auto']), 'purpose' => (string) ($s['purpose'] ?? 'backup'), 'checkpoint_for' => (string) ($s['checkpoint_for'] ?? ''))), LOCK_EX)) {
             throw new RuntimeException(esc_html__('Could not save backup completion marker. Check storage permissions.', 'uwh-site-migrator'));
         }
         // Cleanup is best-effort after a durable completion marker; deletion can retry it.
@@ -3846,6 +4925,7 @@ final class UWHSM_Engine {
             return;
         }
         if (!@flock($lock, LOCK_EX | LOCK_NB)) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
             fclose($lock);
             $this->fail(__('A restore batch is currently running. Wait for it to finish, then retry Cancel.', 'uwh-site-migrator'), 409);
             return;
@@ -5344,9 +6424,11 @@ final class UWHSM_Engine {
                 // This is not permission to ignore missing database rows.
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Restore an archive-verified WordPress setting if its row was removed by concurrent runtime code.
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- Restore one pre-verified missing option row; this is not a database schema change.
+                // phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange -- This restores one verified missing option ROW, not a database schema change.
                 if (false === $wpdb->insert($options, array('option_name' => $key, 'option_value' => $value, 'autoload' => 'yes'))) {
                     throw new RuntimeException(esc_html__('Could not re-create verified source website setting: ', 'uwh-site-migrator') . esc_html($key));
                 }
+                // phpcs:enable WordPress.DB.DirectDatabaseQuery.SchemaChange
             } elseif ((string) $current !== (string) $value) {
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Only source-verified settings can be reapplied.
                 if (false === $wpdb->update($options, array('option_value' => $value), array('option_name' => $key))) {
@@ -6408,6 +7490,13 @@ final class UWHSM_Engine {
 
     public function list_backups() {
         $out = array();
+        $jobs_by_name = array();
+        foreach ($this->unfinished_ordinary_backup_states() as $job => $state) {
+            $name = (string) ($state['name'] ?? '');
+            if ($this->valid_backup_name($name) && (string) ($state['zip'] ?? '') === $this->backup_dir . '/' . $name) {
+                $jobs_by_name[$name] = $state;
+            }
+        }
         foreach ((array) glob($this->backup_dir . '/*.uwh') as $path) {
             if (!is_file($path))continue;
             $name = basename($path);
@@ -6423,7 +7512,8 @@ final class UWHSM_Engine {
             $size = $complete?$record['size']:(int) filesize($path);
             $timestamp = $complete?$record['mtime']:(int) filemtime($path);
             $token = $this->download_token($name);
-            $out[] = array('name' => $name, 'size' => $size, 'date' => strtolower(wp_date('d M Y', $timestamp)), 'timestamp' => $timestamp, 'complete' => $complete, 'origin' => $complete ? (string) ($record['marker']['origin'] ?? '') : '', 'download' => $complete?admin_url('admin-post.php?action=uwhsm_download&backup_name=' . rawurlencode($name) . '&download_token=' . $token):'');
+            $resumable = !$complete && isset($jobs_by_name[$name]) && !is_link($path) && !is_file($this->cancel_path($jobs_by_name[$name]['job']));
+            $out[] = array('name' => $name, 'size' => $size, 'date' => strtolower(wp_date('d M Y', $timestamp)), 'timestamp' => $timestamp, 'complete' => $complete, 'job' => $resumable ? (string) $jobs_by_name[$name]['job'] : '', 'resumable' => $resumable, 'selected' => $resumable && $this->selected_backup_job() === (string) $jobs_by_name[$name]['job'], 'paused' => $resumable && $this->backup_is_paused((string) $jobs_by_name[$name]['job']), 'origin' => $complete ? (string) ($record['marker']['origin'] ?? '') : '', 'download' => $complete?admin_url('admin-post.php?action=uwhsm_download&backup_name=' . rawurlencode($name) . '&download_token=' . $token):'');
         }
         usort($out, static function($a, $b) {
                 return $b['timestamp'] <=> $a['timestamp'];
@@ -6523,104 +7613,78 @@ final class UWHSM_Engine {
 
     public function uwhsm_delete_backup() {
         $this->guard();
-        $backup_name_raw = sanitize_file_name(UWHSM_Compat::post_value('backup_name'));
-        if ('' === $backup_name_raw) {
-            $backup_name_raw = sanitize_file_name(UWHSM_Compat::post_value('file'));
-        }
-        if ('' === $backup_name_raw) {
-            $backup_name_raw = sanitize_file_name(UWHSM_Compat::post_value('name'));
-        }
-
-        $backup_name_raw = is_scalar( $backup_name_raw ) ? (string) $backup_name_raw : '';
-        $name            = $this->normalize_backup_name( $backup_name_raw );
+        $raw = UWHSM_Compat::post_value('backup_name');
+        if ('' === $raw) { $raw = UWHSM_Compat::post_value('file'); }
+        if ('' === $raw) { $raw = UWHSM_Compat::post_value('name'); }
+        $name = $this->normalize_backup_name(sanitize_file_name($raw));
         if (!$this->valid_backup_name($name)) {
             $this->fail(__('Invalid backup name.', 'uwh-site-migrator'), 400);
+            return;
         }
         if (class_exists('UWHSM_Site_Transfer') && UWHSM_Site_Transfer::backup_is_shared($name)) {
-            $this->fail(__('This backup is currently shared by an active Direct Migration key. Revoke the key before deleting the backup.', 'uwh-site-migrator'), 409);
+            $this->fail(__('Revoke the active Direct Migration sharing key before deleting this archive.', 'uwh-site-migrator'), 409);
             return;
         }
         foreach ((array) glob($this->base . '/job-*.json') as $restore_file) {
             $restore = json_decode((string) @file_get_contents($restore_file), true);
-            if (is_array($restore) && ($restore['type'] ?? '') === 'restore' && ($restore['source_mode'] ?? '') === 'local' && ($restore['phase'] ?? '') !== 'done' && hash_equals((string) ($restore['archive_name'] ?? ''), $name)) {
-                $this->fail(__('This backup is the source of an unfinished restore. Resume or finish that restore before deleting it.', 'uwh-site-migrator'), 409);
+            if (is_array($restore) && ($restore['type'] ?? '') === 'restore' && ($restore['source_mode'] ?? '') === 'local'
+                && ($restore['phase'] ?? '') !== 'done' && hash_equals((string) ($restore['archive_name'] ?? ''), $name)) {
+                $this->fail(__('This archive is required by an unfinished restore. Finish or cancel that restore first.', 'uwh-site-migrator'), 409);
                 return;
             }
         }
-        $path = '';
-        foreach ((array) glob($this->backup_dir . '/*.uwh') as $candidate) {
-            if (hash_equals(basename($candidate), $name)) {
-                $path = $candidate;
-                break;
-            }
-        }
-        $cancelled = 0;
+        $path = $this->backup_dir . '/' . $name;
         $pending = 0;
-        foreach ((array) glob($this->base . '/job-*.json') as $state_file) {
-            $state = json_decode((string) @file_get_contents($state_file), true);
-            if (!is_array($state) || empty($state['zip']) || !hash_equals(basename($state['zip']), $name)) {
-                continue;
-            }
-            $job = (string) ($state['job'] ?? '');
-            $lock = false;
-            $lock_path = '';
-            if ($this->safe_id($job)) {
-                @file_put_contents($this->cancel_path($job), '1', LOCK_EX);
-                $lock_path = $this->lock_path($job);
-                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-                $lock = @fopen($lock_path, 'c');
-                if (!$lock) {
-                    $this->fail(__('Cannot lock backup for deletion. Check storage permissions.', 'uwh-site-migrator'), 500);
+        try {
+            foreach ($this->unfinished_ordinary_backup_states() as $job => $state) {
+                if (!hash_equals((string) ($state['name'] ?? ''), $name)) { continue; }
+                if (!hash_equals((string) ($state['zip'] ?? ''), $path)) {
+                    throw new RuntimeException(__('Temporary backup job path mismatch. No archive was deleted.', 'uwh-site-migrator'));
                 }
-                if (!@flock($lock, LOCK_EX|LOCK_NB)) {
-                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-                    @fclose($lock);
+                if (false === @file_put_contents($this->cancel_path($job), '1', LOCK_EX)) {
+                    throw new RuntimeException(__('Could not save cancellation. Check storage permissions.', 'uwh-site-migrator'));
+                }
+                if (class_exists('UWHSM_Background')) {
+                    wp_clear_scheduled_hook(UWHSM_Background::HOOK, array($job));
+                }
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- A backup writer's advisory lock must be respected during deletion.
+                $lock = @fopen($this->lock_path($job), 'c');
+                if (!$lock) { throw new RuntimeException(__('Could not lock backup for deletion.', 'uwh-site-migrator')); }
+                $locked = @flock($lock, LOCK_EX | LOCK_NB);
+                if (!$locked) {
                     $pending++;
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Release native flock/stream handle; WP_Filesystem does not expose PHP lock handles.
+                    @fclose($lock);
                     continue;
                 }
-            }
-            if (!empty($state['db_stage'])) {
-                $this->remove_tree($state['db_stage']);
-                if (is_dir($state['db_stage'])) {
-                    $this->fail(__('Temporary files could not be removed. Check file ownership and permissions.', 'uwh-site-migrator'), 500);
-                }
-            }
-            try {
-                $this->remove_managed_backup_artifact($state_file . '.tmp', __('Temporary backup state could not be deleted.', 'uwh-site-migrator'));
-                $this->remove_managed_backup_artifact($state_file, __('Backup state could not be deleted. Check permissions and retry.', 'uwh-site-migrator'));
-                if ($this->safe_id($job)) {
-                    $this->remove_managed_backup_artifact($this->cancel_path($job), __('Backup cancellation marker could not be removed.', 'uwh-site-migrator'));
-                }
-            } catch (Throwable $e) {
-                if ($lock) {
+                try {
+                    $fresh = $this->background_state($job);
+                    if ($fresh && 'done' !== ($fresh['phase'] ?? '')) {
+                        $this->cleanup_cancelled_backup_locked($job, $fresh);
+                    } else {
+                        // Completion won the race: never silently delete a completed backup here.
+                        $this->remove_managed_backup_artifact($this->cancel_path($job), __('Could not clear the cancellation marker.', 'uwh-site-migrator'));
+                    }
+                } finally {
                     @flock($lock, LOCK_UN);
-                    @fclose($lock); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native job lock.
+                    @fclose($lock); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Job-lock release.
                 }
-                $this->fail($e->getMessage(), 500);
-                return;
+                $this->remove_managed_backup_artifact($this->lock_path($job), __('Stopped backup lock file could not be removed.', 'uwh-site-migrator'));
             }
-            if ($this->safe_id($job)) {
-                if ($lock) {
-                    @flock($lock, LOCK_UN);
-                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Native stream handles are required for file locking and memory-safe chunked archive I/O.
-                    @fclose($lock);
-                }
-                wp_delete_file($lock_path);
+            if (!$pending) {
+                // Orphan temporary archives have no state to resume; they can still be removed.
+                $this->remove_managed_backup_artifact($path, __('Could not delete the backup file. Check owner/permissions.', 'uwh-site-migrator'));
+                $this->remove_managed_backup_artifact($path . '.json', __('Could not delete the backup metadata.', 'uwh-site-migrator'));
+                // Only the experimental writer creates this private journal.
+                // An orphan temporary archive must not leave its journal behind.
+                $this->remove_managed_backup_artifact($path . '.entries', __('Could not delete the temporary ZIP entry journal.', 'uwh-site-migrator'));
             }
-            $cancelled++;
+        } catch (Throwable $e) {
+            $this->fail($e->getMessage(), 500);
+            return;
         }
-        $target = $path?:$this->backup_dir . '/' . $name;
-        if (!$pending) {
-            try {
-                $this->remove_managed_backup_artifact($target, __('The backup exists but could not be deleted. Check file ownership/permissions.', 'uwh-site-migrator'));
-                $this->remove_managed_backup_artifact($target . '.json', __('Backup metadata could not be removed. Check permissions and retry.', 'uwh-site-migrator'));
-            } catch (Throwable $e) {
-                $this->fail($e->getMessage(), 500);
-                return;
-            }
-        }
-        UWHSM_Logger::log('backup', 'info', $pending ? __('Backup deletion is waiting for a running job.', 'uwh-site-migrator') : __('Backup deleted.', 'uwh-site-migrator'), array('backup' => $name, 'message' => $pending ? __('Deletion pending', 'uwh-site-migrator') : __('Deleted', 'uwh-site-migrator')));
-        wp_send_json_success(array('removed' => !$pending, 'pending' => (bool) $pending, 'cancelled_jobs' => $cancelled, 'already_missing' => !$path && !$pending));
+        UWHSM_Logger::log('backup', 'info', $pending ? __('Temporary backup deletion is pending a running batch.', 'uwh-site-migrator') : __('Backup deleted.', 'uwh-site-migrator'), array('backup' => $name));
+        wp_send_json_success(array('removed' => !$pending, 'pending' => (bool) $pending, 'already_missing' => !$pending && !is_file($path)));
     }
 
     private function normalize_backup_name($name) {

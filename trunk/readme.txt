@@ -3,7 +3,7 @@ Contributors: unitedwebhost
 Tags: backup, migration, restore, google-drive, site-migration
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 2.4.15
+Stable tag: 2.5.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -18,7 +18,7 @@ The plugin is designed around resumable jobs and recovery controls so larger bac
 
 = Features =
 
-* Full WordPress files and database backup packages using the `.uwh` package format, including all WordPress-prefixed tables such as posts, postmeta, theme, and page-builder settings.
+* Full WordPress files and database backup packages using the .uwh package format, including all WordPress-prefixed tables such as posts, postmeta, theme, and page-builder settings.
 * Local restore with resumable processing and integrity checks.
 * Direct Site-to-Site Migration using an expiring migration key and HTTPS server-to-server transfer.
 * Optional pre-restore safety checkpoints with automatic rollback support when enabled.
@@ -42,7 +42,7 @@ Site Migrator does not require a third-party service for local backup, local res
 
 For Direct Site-to-Site Migration, install a compatible Site Migrator version on both sites and use HTTPS. The source and destination WordPress versions should match before the restore begins.
 
-For a cross-domain full-database migration, use a fresh dedicated destination database. The backup includes non-prefixed tables found in the source database; existing non-prefixed destination tables are never silently overwritten. Unsupported database views/storage engines and database changes detected during export produce an explicit error rather than an incomplete success.
+For a cross-domain full-database migration, use a fresh dedicated destination database. Backups select WordPress-prefix tables from the source database; unrelated non-prefixed tables are not imported or overwritten at the destination. Unsupported database views/storage engines and database changes detected during export produce an explicit error rather than an incomplete success.
 
 == Frequently Asked Questions ==
 
@@ -129,6 +129,28 @@ For safety, uninstall does **not** delete Site Migrator settings/options, encryp
 6. Activity log view accessible from Troubleshooting.
 
 == Changelog ==
+
+= 2.5.0 =
+* Plugin Check compliance: improve error escaping and translation comments, document essential native ZIP/locking stream operations, and use WordPress filesystem helpers where suitable.
+* Preserve the original plugin directory listing name and existing backup, restore, migration, and Fast ZIP functionality.
+
+
+= 2.4.18 =
+* Experimental, opt-in append-only ZIP64 writer for new MANUAL backups. This avoids repeatedly rewriting a growing ZIP central directory during file archiving. It is disabled unless `UWHSM_EXPERIMENTAL_STREAM_ZIP` is set to true in wp-config.php.
+* Commit an archive byte offset and private entry-journal offset with each saved batch. On interrupted requests, discard uncommitted trailing data and resume from the prior state. Write one standard ZIP64 central directory at backup completion, then verify it with ZipArchive before marking complete.
+* Keep the established .uwh manifest, database, and integrity.json metadata structure; preserve the legacy ZipArchive code path for all existing jobs, restore checkpoints, and scheduled automatic backups.
+* This is a development/test release, not recommended as a WordPress.org production update until real-site end-to-end backup/restore and multi-host testing succeeds. ZIP64 archives larger than 4 GB have not yet been bench-tested in this test environment.
+
+= 2.4.17 =
+* Step 3: Avoid opening/updating large ZIP packages during skip-only archiving batches; preserve last real ZIP-close timing for safe adaptive tuning. Maintain existing .uwh archive entries, compression modes, SHA-256 integrity, and restart behavior.
+* Step 4: Stream serialized database rows in bounded 256 KiB buffers with complete short-write handling; keep exact base64-serialized rows, committed byte offsets and resumable keyset/offset cursors unchanged.
+* Build final database inventory in one pass, validating staged schema/row files before the ZIP queues them. Preserve all WordPress-prefix tables and existing restore compatibility.
+* No changes to Direct Migration, restore, Google Drive, background scheduling, Pause/Resume/Stop, Elementor, or maintenance behavior.
+
+= 2.4.16 =
+* Record bounded ZIP file-batch performance diagnostics: archive opening, SHA-256 checksum reads, ZIP entry queue, closing, total request time, input throughput, file count and batch limits. View the last 8 samples in Troubleshooting and download them in the diagnostic report.
+* Tune file-archiving batches conservatively using real elapsed processing time, ZIP close cost, checksum overhead, recent throughput and file count. Fall back to the previous safe limits for older backup jobs without measurements.
+* Preserve the existing .uwh format, database export, checksum integrity, resume/pause/stop, background processing, migration, restore and Google Drive behavior.
 
 = 2.4.15 =
 * Improve reliability of background backups when administrators switch tabs or close the browser: recover missing scheduled events and retry transient failures with limits.

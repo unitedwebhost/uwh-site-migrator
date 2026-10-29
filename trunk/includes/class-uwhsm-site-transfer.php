@@ -794,7 +794,7 @@ final class UWHSM_Site_Transfer {
             $state['retry_after'] = 0;
             $state['updated'] = time();
             self::write_state($id, $state);
-            throw new RuntimeException(__('TLS handshake failed repeatedly. Downloaded progress is saved. Check source server SSL/TLS, firewall or proxy configuration, then use Resume Direct Migration.', 'uwh-site-migrator'));
+            throw new RuntimeException(esc_html__('TLS handshake failed repeatedly. Downloaded progress is saved. Check source server SSL/TLS, firewall or proxy configuration, then use Resume Direct Migration.', 'uwh-site-migrator'));
         }
         $state['successful_chunks'] = 0;
         // Discard stale throughput after a network failure or 10s proxy cutoff.
